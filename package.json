@@ -1,0 +1,33 @@
+{
+  "name": "taxfax",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TaxFax — stop chasing, start filing. Tax-season document collection for CPA firms.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix functions run build && npm --prefix web run build",
+    "typecheck": "npm --prefix web run typecheck && npm --prefix functions run typecheck",
+    "check": "node --experimental-strip-types packages/shared/src/check.ts",
+    "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --experimental-strip-types --test firestore.rules.test.ts",
+    "verify": "npm run check && npm run test:rules && npm run typecheck && npm run build",
+    "emu": "firebase emulators:start --import .emulator-data --export-on-exit .emulator-data",
+    "emu:clean": "firebase emulators:start",
+    "seed": "node --experimental-strip-types seed/seed.ts",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "deploy": "npm run build && firebase deploy",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
+    "deploy:hosting": "npm --prefix web run build && firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.50.0",
+    "firebase": "^12.16.0",
+    "firebase-admin": "^14.2.0",
+    "typescript": "^5.7.3"
+  }
+}

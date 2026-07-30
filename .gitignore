@@ -1,0 +1,44 @@
+# Secrets — NEVER commit
+.env/
+.env
+.env.*
+!.env.example
+*firebase-adminsdk*.json
+service-account*.json
+
+# Deps
+node_modules/
+.pnp.*
+.yarn/
+
+# Build
+dist/
+build/
+lib/
+*.tsbuildinfo
+
+# Firebase
+.firebase/
+.emulator-data/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+pubsub-debug.log*
+firebase-export-*/
+extensions/*.secret.local
+
+# Test
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Agent scratch — deleted before ship, never committed
+scratch/
