@@ -1,0 +1,212 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push makes an in-flight run irrelevant. Cancel it rather than pay for
+# it — except on main, where every commit's status is a real historical record.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ── Fast signal ────────────────────────────────────────────────────────────
+  # Domain logic needs no emulator and no browser, so it fails in ~30s rather
+  # than waiting behind a Java boot and a Chromium download.
+  domain:
+    name: Domain self-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Taxonomy, checklist, naming, cadence
+        run: npm run check
+
+  typecheck:
+    name: Typecheck and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+            functions/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix web
+      - run: npm ci --prefix functions
+      - run: npm --prefix web run typecheck
+      - run: npm --prefix functions run typecheck
+      - name: Build functions bundle
+        run: npm --prefix functions run build
+      - name: Build web
+        run: npm --prefix web run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 7
+
+  # ── Security boundary ──────────────────────────────────────────────────────
+  # These gate the whole product: a regression here leaks one firm's client
+  # documents to another. Never allowed to be advisory.
+  rules:
+    name: Security rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - name: Cache emulator binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: emulators-${{ runner.os }}-${{ hashFiles('firebase.json') }}
+          restore-keys: emulators-${{ runner.os }}-
+      - name: Firestore + Storage rule tests
+        run: npx --no-install firebase emulators:exec --only firestore,storage --project taxfax-364f6 "npm run test:rules"
+
+  # ── End to end ─────────────────────────────────────────────────────────────
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [domain]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+            functions/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm ci --prefix web
+      - run: npm ci --prefix functions
+      - name: Cache emulator binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: emulators-${{ runner.os }}-${{ hashFiles('firebase.json') }}
+          restore-keys: emulators-${{ runner.os }}-
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright
+        run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+
+  # ── Guardrails ─────────────────────────────────────────────────────────────
+  constraints:
+    name: Architecture constraints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Backend must be Firebase and only Firebase
+        run: bash scripts/check-firebase-only.sh
+      - name: No secrets committed
+        run: bash scripts/check-no-secrets.sh
+
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  # main only, and only behind every check above. Rules deploy before hosting so
+  # a new client build is never live against the previous security model.
+  deploy:
+    name: Deploy to Firebase
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [domain, typecheck, rules, constraints, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://taxfax-364f6.web.app
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+            functions/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix web
+      - run: npm ci --prefix functions
+
+      - name: Authenticate to Firebase
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT is not set. Add it with: gh secret set FIREBASE_SERVICE_ACCOUNT < path/to/adminsdk.json"
+            exit 1
+          fi
+          # Written outside the workspace so it can never be picked up by a
+          # build step or an artifact upload.
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Build web
+        env:
+          VITE_RECAPTCHA_SITE_KEY: ${{ vars.VITE_RECAPTCHA_SITE_KEY }}
+        run: |
+          if [ -z "${VITE_RECAPTCHA_SITE_KEY:-}" ]; then
+            echo "::warning::VITE_RECAPTCHA_SITE_KEY is not set, so App Check will not initialise and this deploy is unprotected against API abuse. Create a reCAPTCHA Enterprise key, register it under App Check, then: gh variable set VITE_RECAPTCHA_SITE_KEY"
+          fi
+          npm --prefix web run build
+
+      - name: Deploy security rules and indexes
+        run: npx --no-install firebase deploy --only firestore:rules,firestore:indexes,storage --project taxfax-364f6 --non-interactive
+
+      - name: Deploy functions
+        run: npx --no-install firebase deploy --only functions --project taxfax-364f6 --non-interactive --force
+
+      - name: Deploy hosting
+        run: npx --no-install firebase deploy --only hosting --project taxfax-364f6 --non-interactive
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
+

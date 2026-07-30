@@ -12,7 +12,8 @@
     "build": "npm --prefix functions run build && npm --prefix web run build",
     "typecheck": "npm --prefix web run typecheck && npm --prefix functions run typecheck",
     "check": "node --experimental-strip-types packages/shared/src/check.ts",
-    "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --experimental-strip-types --test firestore.rules.test.ts",
+    "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --experimental-strip-types --test firestore.rules.test.ts storage.rules.test.ts",
+    "test:rules:ci": "firebase emulators:exec --only firestore,storage --project taxfax-364f6 \"npm run test:rules\"",
     "verify": "npm run check && npm run test:rules && npm run typecheck && npm run build",
     "emu": "firebase emulators:start --import .emulator-data --export-on-exit .emulator-data",
     "emu:clean": "firebase emulators:start",
@@ -28,6 +29,7 @@
     "@playwright/test": "^1.50.0",
     "firebase": "^12.16.0",
     "firebase-admin": "^14.2.0",
+    "firebase-tools": "^14.27.0",
     "typescript": "^5.7.3"
   }
 }
