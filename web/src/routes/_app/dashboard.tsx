@@ -20,7 +20,7 @@ import {
   seasonClock,
 } from '@/components/dashboard';
 
-export const Route = createFileRoute('/_app/')({
+export const Route = createFileRoute('/_app/dashboard')({
   component: DashboardScreen,
 });
 
