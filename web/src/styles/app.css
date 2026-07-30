@@ -1,0 +1,266 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
+@import '@fontsource-variable/geist-mono';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TaxFax design system — "Archive"
+
+   The register is fine financial printing, not SaaS: warm paper, near-black
+   ink, hairline rules, tabular figures, and a single vermilion accent used
+   like a rubber stamp. Colour is reserved for status, because in this product
+   status is the entire job. Nothing here is decorative.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── Type ──────────────────────────────────────────────────────────────── */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-2xs--letter-spacing: 0.02em;
+
+  /* ── Ink & paper ───────────────────────────────────────────────────────── */
+  --color-paper: oklch(0.978 0.004 85);
+  --color-surface: oklch(1 0 0);
+  --color-surface-sunken: oklch(0.965 0.005 85);
+  --color-surface-raised: oklch(1 0 0);
+
+  --color-ink: oklch(0.17 0.005 285);
+  --color-ink-muted: oklch(0.505 0.008 285);
+  --color-ink-faint: oklch(0.66 0.007 285);
+
+  --color-line: oklch(0.905 0.005 85);
+  --color-line-strong: oklch(0.845 0.006 85);
+
+  /* ── Vermilion — identity only, never chrome ───────────────────────────── */
+  --color-stamp: oklch(0.585 0.185 33);
+  --color-stamp-ink: oklch(0.475 0.17 33);
+  --color-stamp-wash: oklch(0.585 0.185 33 / 0.08);
+
+  /* ── Status ────────────────────────────────────────────────────────────── */
+  --color-status-neutral: oklch(0.55 0.01 285);
+  --color-status-neutral-wash: oklch(0.55 0.01 285 / 0.09);
+
+  --color-status-info: oklch(0.52 0.16 255);
+  --color-status-info-wash: oklch(0.52 0.16 255 / 0.09);
+
+  --color-status-warn: oklch(0.605 0.14 68);
+  --color-status-warn-wash: oklch(0.605 0.14 68 / 0.12);
+
+  --color-status-success: oklch(0.525 0.125 152);
+  --color-status-success-wash: oklch(0.525 0.125 152 / 0.1);
+
+  --color-status-danger: oklch(0.545 0.196 27);
+  --color-status-danger-wash: oklch(0.545 0.196 27 / 0.09);
+
+  /* ── Focus ─────────────────────────────────────────────────────────────── */
+  --color-focus: oklch(0.52 0.16 255);
+
+  /* ── Radius — matched to the verified 21st.dev ramp ────────────────────── */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+
+  /* ── Elevation tracks z-intent, not decoration ─────────────────────────── */
+  --shadow-xs: 0 1px 1px oklch(0.17 0.005 285 / 0.04);
+  --shadow-sm: 0 1px 2px oklch(0.17 0.005 285 / 0.06), 0 1px 1px oklch(0.17 0.005 285 / 0.04);
+  --shadow-md:
+    0 4px 8px -2px oklch(0.17 0.005 285 / 0.08), 0 2px 4px -2px oklch(0.17 0.005 285 / 0.05);
+  --shadow-lg:
+    0 12px 24px -6px oklch(0.17 0.005 285 / 0.1), 0 4px 8px -4px oklch(0.17 0.005 285 / 0.06);
+  --shadow-xl:
+    0 24px 48px -12px oklch(0.17 0.005 285 / 0.16), 0 8px 16px -8px oklch(0.17 0.005 285 / 0.08);
+
+  /* ── Motion — functional is fast and stiff; decorative is slow and loose ─ */
+  --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.dark {
+  --color-paper: oklch(0.163 0.005 285);
+  --color-surface: oklch(0.196 0.005 285);
+  --color-surface-sunken: oklch(0.142 0.005 285);
+  --color-surface-raised: oklch(0.225 0.005 285);
+
+  --color-ink: oklch(0.955 0.003 85);
+  --color-ink-muted: oklch(0.685 0.007 285);
+  --color-ink-faint: oklch(0.535 0.008 285);
+
+  --color-line: oklch(0.285 0.006 285);
+  --color-line-strong: oklch(0.365 0.007 285);
+
+  --color-stamp: oklch(0.665 0.175 34);
+  --color-stamp-ink: oklch(0.745 0.15 40);
+  --color-stamp-wash: oklch(0.665 0.175 34 / 0.14);
+
+  --color-status-neutral: oklch(0.68 0.01 285);
+  --color-status-neutral-wash: oklch(0.68 0.01 285 / 0.14);
+  --color-status-info: oklch(0.7 0.14 253);
+  --color-status-info-wash: oklch(0.7 0.14 253 / 0.15);
+  --color-status-warn: oklch(0.775 0.135 72);
+  --color-status-warn-wash: oklch(0.775 0.135 72 / 0.16);
+  --color-status-success: oklch(0.715 0.145 155);
+  --color-status-success-wash: oklch(0.715 0.145 155 / 0.15);
+  --color-status-danger: oklch(0.68 0.175 24);
+  --color-status-danger-wash: oklch(0.68 0.175 24 / 0.15);
+
+  --color-focus: oklch(0.7 0.14 253);
+
+  --shadow-xs: 0 1px 1px oklch(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.4), 0 1px 1px oklch(0 0 0 / 0.3);
+  --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 0.5), 0 2px 4px -2px oklch(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 24px -6px oklch(0 0 0 / 0.55), 0 4px 8px -4px oklch(0 0 0 / 0.4);
+  --shadow-xl: 0 24px 48px -12px oklch(0 0 0 / 0.65), 0 8px 16px -8px oklch(0 0 0 / 0.45);
+}
+
+/* ═══ Base ═══════════════════════════════════════════════════════════════ */
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* cv11: single-storey g · ss03: rounded quotes — quiets Inter's defaults. */
+    font-feature-settings: 'cv11', 'ss03', 'calt';
+    font-variant-numeric: tabular-nums;
+    overscroll-behavior-y: none;
+  }
+
+  /* Money, counts, dates and IDs must never shift width between renders. */
+  table,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Radix sets this on the body while a modal is open. */
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
+
+  ::selection {
+    background-color: var(--color-stamp-wash);
+    color: var(--color-ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-faint);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ═══ Utilities ══════════════════════════════════════════════════════════ */
+
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+}
+
+/* Column headers, metadata labels. */
+@utility label-eyebrow {
+  font-size: var(--text-2xs);
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* The hairline rule that separates rows without drawing a box. */
+@utility rule {
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* Filenames, EINs, amounts — anywhere character alignment carries meaning. */
+@utility ticket {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'ss01', 'zero';
+}
+
+/* Skeletons: a calm opacity pulse, never a shimmer sweep. */
+@utility pulse-calm {
+  animation: pulse-calm 1.6s var(--ease-in-out-quart) infinite;
+}
+
+@keyframes pulse-calm {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.28;
+  }
+}
+
+/* Only ever used on the very first paint of a route. */
+@utility rise-in {
+  animation: rise-in 0.32s var(--ease-out-quint) both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
