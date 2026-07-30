@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { collection, orderBy, query } from 'firebase/firestore';
 import { AlertTriangle, ArrowUpRight, Clock, Pause, Play, Send, Timer } from 'lucide-react';
 import { ROLE_RANK, TONE_LABEL, type ChaseSettings, type FirmRole } from '@taxfax/shared';
@@ -174,9 +175,9 @@ function DetailHeader({ row }: { row: ChaseRow }) {
     <header className="border-b border-line px-5 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <a href={`/clients/${c.id}`} className="text-sm font-semibold text-ink hover:underline">
+          <Link to="/clients/$clientId" params={{ clientId: c.id }} className="text-sm font-semibold text-ink hover:underline">
             {c.displayName}
-          </a>
+          </Link>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs">
             <ContactChip suppressed={row.emailSuppressed} value={email} kind="email" />
             <ContactChip suppressed={row.smsSuppressed} value={phone ?? 'No number'} kind="sms" />
@@ -222,9 +223,9 @@ function NextSendBanner({ row, settings, timezone }: { row: ChaseRow; settings: 
         <p className="font-medium">Cadence exhausted — this one needs you.</p>
         <p className="text-ink-muted">
           The engine stopped after the final step.{' '}
-          <a href={`/clients/${row.client.id}`} className="inline-flex items-center gap-0.5 text-ink hover:underline">
+          <Link to="/clients/$clientId" params={{ clientId: row.client.id }} className="inline-flex items-center gap-0.5 text-ink hover:underline">
             Open the file <ArrowUpRight className="size-3" />
-          </a>
+          </Link>
         </p>
       </Banner>
     );

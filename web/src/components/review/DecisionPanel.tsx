@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { ArrowUpRight, Check, RotateCcw, X } from 'lucide-react';
 import { canonicalName, docType, type Classification } from '@taxfax/shared';
 import { Button, Kbd, Textarea } from '@/components/ui';
@@ -126,12 +127,13 @@ export function DecisionPanel({ item, mode, setMode, onAccept, onReject, onRecla
         )}
 
         <div className="pt-1">
-          <a
-            href={`/clients/${item.clientId}`}
+          <Link
+            to="/clients/$clientId"
+            params={{ clientId: item.clientId }}
             className="inline-flex items-center gap-1 text-2xs text-ink-faint transition-colors hover:text-ink"
           >
             Open {item.clientName}'s file <ArrowUpRight className="size-3" />
-          </a>
+          </Link>
         </div>
       </div>
 

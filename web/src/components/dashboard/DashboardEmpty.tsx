@@ -20,9 +20,9 @@ export function DashboardEmpty({ firmName }: { firmName: string }) {
       </p>
       <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
         <Button variant="primary" asChild>
-          <a href="/clients">
+          <Link to="/clients">
             Import clients <ArrowRight />
-          </a>
+          </Link>
         </Button>
         <Button variant="secondary" asChild>
           <Link to="/chase">Set up the chase cadence</Link>

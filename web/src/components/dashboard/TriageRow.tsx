@@ -78,12 +78,13 @@ export function TriageRow({ item, firmId, rank }: TriageRowProps) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <a
-              href={`/clients/${client.id}`}
+            <Link
+              to="/clients/$clientId"
+              params={{ clientId: client.id }}
               className="truncate text-sm font-medium text-ink outline-none hover:underline focus-visible:underline"
             >
               {client.displayName}
-            </a>
+            </Link>
             {daysWaiting != null && daysWaiting > 0 && (
               <span className="shrink-0 font-mono text-2xs tabular-nums text-ink-faint">{daysWaiting}d</span>
             )}
@@ -104,9 +105,9 @@ export function TriageRow({ item, firmId, rank }: TriageRowProps) {
           )}
           {kind === 'ready' && (
             <Button size="sm" variant="ghost" asChild>
-              <a href={`/clients/${client.id}`}>
+              <Link to="/clients/$clientId" params={{ clientId: client.id }}>
                 Open <ArrowUpRight />
-              </a>
+              </Link>
             </Button>
           )}
         </div>
