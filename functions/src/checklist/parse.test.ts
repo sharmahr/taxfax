@@ -268,11 +268,9 @@ describe('parseReturnText — degrades to confidence 0 without throwing', () => 
 
   for (const { label, input } of cases) {
     it(`${label} → confidence 0, no throw`, () => {
-      let result;
-      assert.doesNotThrow(() => {
-        result = parseReturnText(input);
-      }, `parser threw on ${label} — that would crash the onDocumentUpdated trigger into retries`);
-      assert.ok(result, 'parser must always return a PriorYearReturn');
+      // A throw escapes and fails the test with a real stack — better diagnostics
+      // than doesNotThrow. Either way it would crash onDocumentUpdated into retries.
+      const result = parseReturnText(input);
       assert.equal(result.confidence, 0, `${label} must not be trusted`);
     });
   }
