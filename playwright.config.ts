@@ -44,7 +44,8 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'firebase emulators:start --project taxfax-364f6',
+      command:
+        'firebase emulators:start --project taxfax-364f6 --only auth,firestore,storage,functions',
       cwd: '.',
       url: 'http://127.0.0.1:4000',
       reuseExistingServer: true,

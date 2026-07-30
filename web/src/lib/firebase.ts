@@ -22,18 +22,22 @@ import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'fireba
 import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 
+export const useEmulators =
+  import.meta.env.VITE_USE_EMULATORS === '1' ||
+  (import.meta.env.DEV && location.hostname === 'localhost');
+
 const config = {
   apiKey: 'AIzaSyCkXJkrhq8uNPok0EGWtxer-F7O3D1nev0',
   authDomain: 'taxfax-364f6.firebaseapp.com',
   projectId: 'taxfax-364f6',
-  storageBucket: 'taxfax-364f6.firebasestorage.app',
+  // The Storage emulator only fires onObjectFinalized for the legacy
+  // `.appspot.com` default bucket, so an upload to `.firebasestorage.app`
+  // lands but never triggers ingest — classification and rename silently
+  // never run locally. Production uses the real default bucket.
+  storageBucket: useEmulators ? 'taxfax-364f6.appspot.com' : 'taxfax-364f6.firebasestorage.app',
   messagingSenderId: '278732302845',
   appId: '1:278732302845:web:124a744b57f693ae2d9194',
 };
-
-export const useEmulators =
-  import.meta.env.VITE_USE_EMULATORS === '1' ||
-  (import.meta.env.DEV && location.hostname === 'localhost');
 
 export const app: FirebaseApp = initializeApp(config);
 

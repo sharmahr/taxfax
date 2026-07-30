@@ -36,7 +36,10 @@ export const sendPortalInvite = onCall(callableOptions, async (req) => {
 
   const origin = resolveOrigin(req, data.origin);
   const link = await authAdmin.generateSignInWithEmailLink(email, {
-    url: `${origin}/portal/enter`,
+    // Carry the address in the continue URL so the taxpayer never re-types it.
+    // Firebase requires the email to complete an email-link sign-in; without it
+    // the portal has to prompt, which turns a one-tap entry into a form.
+    url: `${origin}/portal/enter?email=${encodeURIComponent(email)}`,
     handleCodeInApp: true,
   });
 

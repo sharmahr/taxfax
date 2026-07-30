@@ -42,3 +42,6 @@ blob-report/
 
 # Agent scratch — deleted before ship, never committed
 scratch/
+emulators.log
+firebase-debug*.log
+ui-debug.log
