@@ -1,0 +1,152 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Overlay motion for the UI kit.
+
+   Functional motion only: fast, stiff, origin-aware. Popper surfaces scale from
+   the Radix-provided transform origin so a menu grows out of its trigger, not
+   from nowhere. Reduced-motion is already neutralised globally in app.css, so
+   nothing here needs its own guard. The command palette deliberately opts out
+   (it is a keyboard action — it must feel instant, not animated).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@keyframes ui-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ui-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ui-dialog-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(2px) scale(0.99);
+  }
+}
+
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes ui-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.ui-overlay[data-state='open'] {
+  animation: ui-overlay-in 0.2s var(--ease-out-quint);
+}
+.ui-overlay[data-state='closed'] {
+  animation: ui-overlay-out 0.15s var(--ease-out-quint);
+}
+
+.ui-dialog[data-state='open'] {
+  animation: ui-dialog-in 0.22s var(--ease-out-quint);
+}
+.ui-dialog[data-state='closed'] {
+  animation: ui-dialog-out 0.16s var(--ease-in-out-quart);
+}
+
+/* Popper surfaces: menus, popovers, select. */
+.ui-pop {
+  transform-origin: var(--radix-popper-transform-origin, center);
+}
+.ui-pop[data-state='open'] {
+  animation: ui-pop-in 0.14s var(--ease-out-quint);
+}
+.ui-pop[data-state='closed'] {
+  animation: ui-pop-out 0.1s var(--ease-out-quint);
+}
+
+/* Tooltip emits its own state names. */
+.ui-tooltip {
+  transform-origin: var(--radix-tooltip-content-transform-origin, center);
+}
+.ui-tooltip[data-state='delayed-open'],
+.ui-tooltip[data-state='instant-open'] {
+  animation: ui-pop-in 0.12s var(--ease-out-quint);
+}
+.ui-tooltip[data-state='closed'] {
+  animation: ui-pop-out 0.1s var(--ease-out-quint);
+}
+
+/* Side drawers slide from their edge. */
+@keyframes ui-sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes ui-sheet-out-right {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes ui-sheet-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes ui-sheet-out-left {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.ui-sheet-right[data-state='open'] {
+  animation: ui-sheet-in-right 0.28s var(--ease-out-quint);
+}
+.ui-sheet-right[data-state='closed'] {
+  animation: ui-sheet-out-right 0.22s var(--ease-in-out-quart);
+}
+.ui-sheet-left[data-state='open'] {
+  animation: ui-sheet-in-left 0.28s var(--ease-out-quint);
+}
+.ui-sheet-left[data-state='closed'] {
+  animation: ui-sheet-out-left 0.22s var(--ease-in-out-quart);
+}
