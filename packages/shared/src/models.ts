@@ -290,6 +290,7 @@ export type DocumentState =
   | 'needs_review'  // classifier unsure, a human must confirm
   | 'accepted'
   | 'rejected'
+  | 'retracted'     // taxpayer withdrew it — wrong file, sent by mistake
   | 'failed';
 
 export interface StoredDocument {
@@ -323,6 +324,8 @@ export interface StoredDocument {
   reviewedBy?: string;
   reviewedAt?: Timestampish;
   rejectionReason?: string;
+  /** Set when the taxpayer withdrew it themselves. */
+  retractedAt?: Timestampish;
 }
 
 export interface Classification {
@@ -356,6 +359,7 @@ export type ActivityType =
   | 'document_classified'
   | 'document_accepted'
   | 'document_rejected'
+  | 'document_retracted'
   | 'chase_sent'
   | 'chase_paused'
   | 'chase_resumed'

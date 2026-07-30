@@ -1,8 +1,17 @@
 import { onCall } from 'firebase-functions/v2/https';
 import type { WithFieldValue } from 'firebase-admin/firestore';
-import { paths, type Client, type Firm, type PortalGrant } from '@taxfax/shared';
+import {
+  paths,
+  type Client,
+  type DocRequest,
+  type DocumentState,
+  type Firm,
+  type PortalGrant,
+  type RequestStatus,
+  type StoredDocument,
+} from '@taxfax/shared';
 import { authAdmin, db, FieldValue } from '../lib/admin.js';
-import { requireAuth, requireFirmRole } from '../lib/guards.js';
+import { portalClaim, requireAuth, requireFirmRole, requirePortal } from '../lib/guards.js';
 import { denied, invalid, notFound } from '../lib/errors.js';
 import { logActivity } from '../lib/activity.js';
 import { callableOptions } from '../lib/options.js';
@@ -164,4 +173,89 @@ export const claimPortalAccess = onCall(callableOptions, async (req) => {
     firmName: firm?.branding.displayName || firm?.name || '',
     matches: list.length,
   };
+});
+
+/**
+ * A taxpayer withdrawing a document they just sent by mistake — the wrong page,
+ * someone else's W-2, a photo of the kitchen table.
+ *
+ * Without this they have to telephone the firm, which is exactly the friction
+ * this product exists to remove. It is deliberately not a delete: the Storage
+ * object is immutable by design and stays where it is, so the firm keeps a
+ * complete record of what arrived and when. Only the document's state changes,
+ * and the request it was satisfying reopens.
+ *
+ * Bounded by a grace window. Once a preparer has accepted a document it is part
+ * of the return's working papers and the taxpayer can no longer pull it back on
+ * their own — at that point the firm has already acted on it.
+ */
+const RETRACT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export const retractDocument = onCall(callableOptions, async (req) => {
+  const documentId = typeof req.data?.documentId === 'string' ? req.data.documentId : '';
+  if (!documentId) throw invalid('Which document?');
+
+  const portal = portalClaim(req.auth?.token ?? ({} as never));
+  if (!portal) throw denied('Open the secure link we emailed you.');
+  const { firmId, clientId } = portal;
+  const caller = requirePortal(req, firmId, clientId);
+
+  const docRef = db.doc(paths.document(firmId, clientId, documentId));
+
+  const requestId = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    if (!snap.exists) throw notFound('That document is no longer on file.');
+    const document = snap.data() as StoredDocument;
+
+    if (document.uploadedVia !== 'portal') {
+      throw denied('Your accountant added this one. Ask them to remove it.');
+    }
+    if (document.state === 'retracted') return document.requestId;
+    if (document.state === 'accepted') {
+      throw denied(
+        'Your accountant has already reviewed this one. Message them and they can swap it out.',
+      );
+    }
+    if (Date.now() - tsMillis(document.uploadedAt) > RETRACT_WINDOW_MS) {
+      throw denied('This one has been on file too long to withdraw. Ask your accountant to remove it.');
+    }
+
+    // Firestore transactions require every read before any write, so the
+    // request is fetched here rather than after the document is updated.
+    const reqRef = document.requestId
+      ? db.doc(paths.request(firmId, clientId, document.requestId))
+      : null;
+    const reqSnap = reqRef ? await tx.get(reqRef) : null;
+
+    tx.update(docRef, {
+      state: 'retracted' satisfies DocumentState,
+      retractedAt: FieldValue.serverTimestamp(),
+    });
+
+    // Reopen whatever it was satisfying, unless another document still covers it.
+    if (reqRef && reqSnap?.exists) {
+      const request = reqSnap.data() as DocRequest;
+      const remaining = (request.documentIds ?? []).filter((id) => id !== documentId);
+      tx.update(reqRef, {
+        documentIds: remaining,
+        status: remaining.length ? request.status : ('pending' satisfies RequestStatus),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return document.requestId;
+  });
+
+  await logActivity(firmId, {
+    type: 'document_retracted',
+    summary: 'Client withdrew a document they had uploaded',
+    actor: {
+      kind: 'client',
+      uid: caller.uid,
+      name: cleanName(caller.token.name, 1, 120) ?? normEmail(caller.token.email) ?? 'The client',
+    },
+    clientId,
+    meta: { documentId, requestId: requestId ?? null },
+  });
+
+  return { ok: true };
 });
