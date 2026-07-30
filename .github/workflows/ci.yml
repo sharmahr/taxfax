@@ -184,7 +184,7 @@ jobs:
   deploy:
     name: Deploy to Firebase
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [domain, typecheck, rules, constraints, e2e]
+    needs: [domain, typecheck, rules, functions, constraints, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:

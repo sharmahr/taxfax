@@ -1,8 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync } from 'node:fs';
 
-const NODE_BIN = `${process.env.HOME}/.nvm/versions/node/v22.18.0/bin`;
-const JAVA_BIN = '/opt/homebrew/opt/openjdk/bin';
-const PATH = `${JAVA_BIN}:${NODE_BIN}:${process.env.PATH}`;
+/** Local dev needs nvm's node and Homebrew's java on PATH for the emulators;
+ *  CI runners already have both, so only prepend what actually exists. */
+const PATH = [`${process.env.HOME}/.nvm/versions/node/v22.18.0/bin`, '/opt/homebrew/opt/openjdk/bin']
+  .filter((dir) => existsSync(dir))
+  .concat(process.env.PATH ?? '')
+  .join(':');
 
 /**
  * Two servers: the Firebase Emulator Suite (Auth, Firestore, Storage,
