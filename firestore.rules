@@ -1,0 +1,216 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TaxFax Firestore rules
+//
+// Tenancy is carried in custom claims, set by `syncClaims` whenever membership
+// changes, so no rule needs a get() and every check is O(1) and free:
+//
+//   request.auth.token.firms  = { "<firmId>": "owner|admin|preparer|viewer" }
+//   request.auth.token.portal = { firmId: "...", clientId: "..." }
+//
+// Taxpayers get a portal claim and can only ever see their own client record.
+// Everything a taxpayer must not be able to forge — status, classification,
+// checklist completion — is writable only by Cloud Functions (admin SDK, which
+// bypasses these rules entirely).
+// ═══════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Claim helpers ─────────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function firms() {
+      return signedIn() && 'firms' in request.auth.token
+        ? request.auth.token.firms
+        : {};
+    }
+
+    function roleIn(firmId) {
+      return firmId in firms() ? firms()[firmId] : '';
+    }
+
+    function isMember(firmId) {
+      return roleIn(firmId) != '';
+    }
+
+    function rank(role) {
+      return role == 'owner' ? 40
+        : role == 'admin' ? 30
+        : role == 'preparer' ? 20
+        : role == 'viewer' ? 10
+        : 0;
+    }
+
+    function atLeast(firmId, role) {
+      return rank(roleIn(firmId)) >= rank(role);
+    }
+
+    // ── Portal helpers ────────────────────────────────────────────────────
+    function portal() {
+      return signedIn() && 'portal' in request.auth.token
+        ? request.auth.token.portal
+        : {};
+    }
+
+    function isPortalFor(firmId, clientId) {
+      return portal().get('firmId', '') == firmId
+        && portal().get('clientId', '') == clientId;
+    }
+
+    // ── Write-shape helpers ───────────────────────────────────────────────
+    function changed(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(fields.toSet());
+    }
+
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(fields.toSet());
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Firms
+    // ═════════════════════════════════════════════════════════════════════
+    match /firms/{firmId} {
+      // Taxpayers read the firm doc for branding on the portal.
+      allow get: if isMember(firmId) || portal().get('firmId', '') == firmId;
+      allow list: if isMember(firmId);
+
+      // Created only by the `createFirm` callable, so no client create path.
+      allow create: if false;
+      allow update: if atLeast(firmId, 'admin')
+        // Seats, plan and trial are billing state — Functions only.
+        && !changed(['seats', 'plan', 'trialEndsAt', 'createdAt', 'createdBy']);
+      allow delete: if false;
+
+      // ── Members ────────────────────────────────────────────────────────
+      match /members/{uid} {
+        allow read: if isMember(firmId);
+
+        // Membership is only ever written by Functions, which keeps the
+        // members collection and the custom claims from ever disagreeing.
+        allow write: if false;
+      }
+
+      // ── Clients ────────────────────────────────────────────────────────
+      match /clients/{clientId} {
+        allow get: if isMember(firmId) || isPortalFor(firmId, clientId);
+        allow list: if isMember(firmId);
+
+        allow create: if atLeast(firmId, 'preparer')
+          && request.resource.data.firmId == firmId
+          && request.resource.data.displayName is string
+          && request.resource.data.displayName.size() > 0
+          && request.resource.data.displayName.size() <= 200;
+
+        allow update: if atLeast(firmId, 'preparer')
+          // Progress counters and chase state are derived — Functions own them.
+          && !changed(['progress', 'chase', 'priorYear', 'firmId', 'createdAt']);
+
+        allow delete: if atLeast(firmId, 'admin');
+
+        // ── Checklist ────────────────────────────────────────────────────
+        match /requests/{requestId} {
+          allow get, list: if isMember(firmId) || isPortalFor(firmId, clientId);
+
+          allow create, delete: if atLeast(firmId, 'preparer');
+
+          allow update: if
+            // Staff may edit anything except the derived document links.
+            (atLeast(firmId, 'preparer') && !changed(['documentIds', 'firmId', 'clientId']))
+            // A taxpayer may only ever tick "this doesn't apply to me", which
+            // parks the item for preparer review rather than removing it.
+            || (isPortalFor(firmId, clientId) && onlyChanged(['clientNote', 'updatedAt']));
+        }
+
+        // ── Documents ────────────────────────────────────────────────────
+        match /documents/{documentId} {
+          allow get, list: if isMember(firmId) || isPortalFor(firmId, clientId);
+
+          // The upload handshake: the client writes an `uploading` stub, then
+          // the Storage trigger takes over. Everything derived is locked.
+          allow create: if (atLeast(firmId, 'preparer') || isPortalFor(firmId, clientId))
+            && request.resource.data.firmId == firmId
+            && request.resource.data.clientId == clientId
+            && request.resource.data.state == 'uploading'
+            && request.resource.data.uploadedBy == request.auth.uid
+            && request.resource.data.sizeBytes is int
+            && request.resource.data.sizeBytes > 0
+            && request.resource.data.sizeBytes <= 41943040
+            && !('classification' in request.resource.data);
+
+          // Review decisions are staff-only; classification is Functions-only.
+          allow update: if atLeast(firmId, 'preparer')
+            && !changed(['classification', 'storagePath', 'firmId', 'clientId', 'uploadedBy', 'sizeBytes']);
+
+          allow delete: if atLeast(firmId, 'preparer');
+        }
+
+        // ── Chase history ────────────────────────────────────────────────
+        match /chaseMessages/{messageId} {
+          allow read: if isMember(firmId);
+          allow write: if false;
+        }
+      }
+
+      // ── Activity feed ──────────────────────────────────────────────────
+      match /activity/{eventId} {
+        allow read: if isMember(firmId);
+        allow write: if false;
+      }
+
+      // ── Checklist templates ────────────────────────────────────────────
+      match /templates/{templateId} {
+        allow read: if isMember(firmId);
+        allow write: if atLeast(firmId, 'admin');
+      }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Per-user index — the one read that resolves a login to its workspaces
+    // ═════════════════════════════════════════════════════════════════════
+    match /users/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if false;
+      // Written by Functions so firmIds can never be self-granted. The user may
+      // only change which workspace opens by default.
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['defaultFirmId', 'name'].toSet());
+      allow create, delete: if false;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Everything below is Functions-only. Listed explicitly rather than left
+    // to the default deny so the intent is legible during a security review.
+    // ═════════════════════════════════════════════════════════════════════
+
+    // Invite tokens — read via the `acceptInvite` callable only, never
+    // directly, so a token can't be enumerated or inspected before use.
+    match /invites/{token} {
+      allow read, write: if false;
+    }
+
+    match /portalGrants/{uid} {
+      allow read, write: if false;
+    }
+
+    // firestore-send-email extension queue.
+    match /mail/{id} {
+      allow read, write: if false;
+    }
+
+    // twilio-send-message extension queue.
+    match /messages/{id} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

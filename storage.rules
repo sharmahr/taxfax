@@ -1,0 +1,119 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TaxFax Cloud Storage rules
+//
+// Layout: firms/{firmId}/{taxYear}/{clientId}/{documentId}/{fileName}
+//
+// Tenancy comes from the same custom claims as Firestore. Taxpayers can write
+// only into their own client folder and can never list a firm's objects.
+// ═══════════════════════════════════════════════════════════════════════════
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function firms() {
+      return signedIn() && 'firms' in request.auth.token
+        ? request.auth.token.firms
+        : {};
+    }
+
+    function roleIn(firmId) {
+      return firmId in firms() ? firms()[firmId] : '';
+    }
+
+    function isMember(firmId) {
+      return roleIn(firmId) != '';
+    }
+
+    function rank(role) {
+      return role == 'owner' ? 40
+        : role == 'admin' ? 30
+        : role == 'preparer' ? 20
+        : role == 'viewer' ? 10
+        : 0;
+    }
+
+    function atLeast(firmId, role) {
+      return rank(roleIn(firmId)) >= rank(role);
+    }
+
+    function portal() {
+      return signedIn() && 'portal' in request.auth.token
+        ? request.auth.token.portal
+        : {};
+    }
+
+    function isPortalFor(firmId, clientId) {
+      return portal().get('firmId', '') == firmId
+        && portal().get('clientId', '') == clientId;
+    }
+
+    // 40 MB — comfortably above a phone photo or a 60-page brokerage 1099.
+    function withinSize() {
+      return request.resource.size > 0 && request.resource.size <= 40 * 1024 * 1024;
+    }
+
+    // Allow-list rather than a blanket image/*; keeps SVG (script-bearing) out.
+    function acceptedType() {
+      return request.resource.contentType in [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/heic',
+        'image/heif',
+        'image/webp',
+        'image/tiff',
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+    }
+
+    // ── Client documents ───────────────────────────────────────────────────
+    // taxYear is pinned to four digits so this rule cannot be used to write at
+    // depth into `assets/`, and so the path always round-trips through
+    // `parseDocumentPath`, which expects \d{4}.
+    match /firms/{firmId}/{taxYear}/{clientId}/{documentId}/{fileName} {
+      allow read: if (isMember(firmId) || isPortalFor(firmId, clientId))
+        && taxYear.matches('^[0-9]{4}$');
+
+      // Objects are immutable once written. In Storage rules an overwrite is
+      // evaluated as `create` — not `update` — so immutability has to be
+      // spelled `resource == null`. Without it a taxpayer could swap an
+      // already-reviewed W-2 for a different file after the fact. The
+      // canonical rename is a Functions-side copy to a new name, so the
+      // original upload always survives a dispute.
+      allow create: if resource == null
+        && (atLeast(firmId, 'preparer') || isPortalFor(firmId, clientId))
+        && taxYear.matches('^[0-9]{4}$')
+        && withinSize()
+        && acceptedType();
+
+      // Metadata edits (the classification marker) are Functions-only.
+      allow update: if false;
+
+      allow delete: if atLeast(firmId, 'preparer');
+    }
+
+    // ── Firm branding ──────────────────────────────────────────────────────
+    match /firms/{firmId}/assets/{fileName} {
+      // Public read: logos appear on the portal before a taxpayer signs in.
+      allow read: if true;
+      allow write: if atLeast(firmId, 'admin')
+        && request.resource.size <= 2 * 1024 * 1024
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/(png|jpeg|webp)');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
