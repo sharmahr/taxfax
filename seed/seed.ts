@@ -250,6 +250,7 @@ const slugId = (name: string) =>
     .slice(0, 40);
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
+const daysAhead = (n: number) => new Date(Date.now() + n * 86_400_000);
 const sortNameOf = (s: Seed) => {
   if (s.entity !== 'individual') return s.name;
   const parts = s.name.split(/\s+/);
@@ -381,7 +382,7 @@ async function seedClients() {
         expectedIssuers: hit.issuers.length ? hit.issuers : undefined,
         status,
         documentIds: [],
-        dueDate: new Date(Date.UTC(2026, 2, hit.priority === 'critical' ? 6 : 20)),
+        dueDate: daysAhead(hit.priority === 'critical' ? 24 : 38),
         order: idx,
         createdAt: started,
         updatedAt: status === 'pending' ? started : daysAgo(Math.max(1, (seed.daysWaiting ?? 20) - idx)),
