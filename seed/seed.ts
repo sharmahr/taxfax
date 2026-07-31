@@ -5,32 +5,49 @@
  * opened the portal, one has a bounced email and one has opted out of SMS.
  * Screenshots and E2E runs are only worth anything against a book of business
  * that looks like February.
+ *
+ * Two things this deliberately refuses to fake.
+ *
+ * Documents have bytes. Every `storagePath` used to point at nothing, so the
+ * review queue's preview pane — the screen the product is sold on — showed
+ * "Preview not available" for the entire demo. Each document is now a real
+ * synthetic PDF uploaded to Storage.
+ *
+ * Confidence is measured, not written. No line here sets a classifier
+ * confidence. The generated PDF's text goes through the *real* classifier and
+ * whatever it returns is what gets stored, including the state the pipeline's
+ * own thresholds would have chosen. Likewise a client's language is not
+ * assigned: the Schedule LEP page is printed onto last year's return and the
+ * real prior-year parser reads it back off.
  */
 import { initializeApp, cert, type AppOptions } from 'firebase-admin/app';
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { getAuth, type Auth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { readFileSync } from 'node:fs';
+import { parseReturnText } from '../functions/src/checklist/parsePriorYearReturn.ts';
 import {
   paths,
   DEFAULT_CHASE_SETTINGS,
-  generateChecklist,
-  emptyPriorYear,
-  docType,
   canonicalName,
+  generateChecklist,
+  docType,
   documentPath,
+  isLocaleId,
+  localeRecord,
+  resolveLepCode,
+  LEP_LANGUAGES,
+  type Classification,
   type Client,
-  type ClientStage,
+  type ClientLanguage,
   type DocRequest,
-  type EntityType,
-  type FilingStatus,
   type FirmRole,
-  type PriorYearReturn,
   type RequestStatus,
 } from '../packages/shared/src/index.ts';
+import { CLIENTS, FIRM_ID, TAX_YEAR, priorFor, slugId, sortNameOf, type Seed } from './clients.ts';
+import { buildDocument, buildPriorReturn, type Capture } from './documents.ts';
 
 const LIVE = process.argv.includes('--live');
-const TAX_YEAR = 2025;
-const FIRM_ID = 'whitfield-rowe';
 
 if (!LIVE) {
   process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080';
@@ -52,6 +69,15 @@ const db: Firestore = getFirestore();
 const auth: Auth = getAuth();
 db.settings({ ignoreUndefinedProperties: true });
 
+/**
+ * The legacy `.appspot.com` name, deliberately. It is what the web app resolves
+ * to against the emulator, and the Storage emulator only fires the ingest
+ * trigger for that bucket — seeding into `.firebasestorage.app` would put the
+ * bytes somewhere the preview pane cannot read them.
+ */
+const BUCKET = 'taxfax-364f6.appspot.com';
+const bucket = getStorage().bucket(BUCKET);
+
 // ── Staff ───────────────────────────────────────────────────────────────────
 
 const STAFF: { uid: string; name: string; email: string; role: FirmRole; color: string }[] = [
@@ -64,203 +90,132 @@ const STAFF: { uid: string; name: string; email: string; role: FirmRole; color: 
 
 const PASSWORD = 'taxfax-demo-2026';
 
-// ── Clients ─────────────────────────────────────────────────────────────────
-
-interface Seed {
-  name: string;
-  email: string;
-  phone?: string;
-  entity: EntityType;
-  filing?: FilingStatus;
-  stage: ClientStage;
-  assigned: string;
-  tags: string[];
-  /** Shapes the generated checklist. */
-  profile: 'w2-simple' | 'w2-investments' | 'schedule-c' | 'rental' | 'partner' | 'retired' | 'entity';
-  /** 0–1 of checklist items already accepted. */
-  done: number;
-  smsOptOut?: boolean;
-  emailBounced?: boolean;
-  daysWaiting?: number;
-}
-
-const CLIENTS: Seed[] = [
-  { name: 'Eleanor Whitfield', email: 'eleanor.whitfield@fastmail.com', phone: '+15125550142', entity: 'individual', filing: 'mfj', stage: 'partial', assigned: 'staff-priya', tags: ['high-value'], profile: 'w2-investments', done: 0.55, daysWaiting: 12 },
-  { name: 'Marcus Delacroix', email: 'm.delacroix@gmail.com', phone: '+15125550188', entity: 'individual', filing: 'single', stage: 'awaiting', assigned: 'staff-priya', tags: [], profile: 'schedule-c', done: 0, daysWaiting: 19 },
-  { name: 'Priyanka Venkataraman', email: 'pv@venkatconsulting.com', phone: '+15125550119', entity: 'individual', filing: 'mfj', stage: 'ready', assigned: 'staff-dan', tags: ['high-value'], profile: 'partner', done: 1 },
-  { name: 'Northwind Logistics LLC', email: 'accounting@northwindlog.com', phone: '+15125550176', entity: 'partnership', stage: 'partial', assigned: 'staff-dan', tags: ['entity', 'high-value'], profile: 'entity', done: 0.4, daysWaiting: 8 },
-  { name: 'Rosalind Achebe', email: 'r.achebe@outlook.com', phone: '+15125550163', entity: 'individual', filing: 'hoh', stage: 'in_review', assigned: 'staff-priya', tags: [], profile: 'w2-simple', done: 1 },
-  { name: 'Thomas Bergström', email: 'tbergstrom@icloud.com', entity: 'individual', filing: 'mfj', stage: 'blocked', assigned: 'staff-dan', tags: ['needs-attention'], profile: 'rental', done: 0.2, emailBounced: true, daysWaiting: 31 },
-  { name: 'Yuki Tanaka', email: 'yuki.tanaka@proton.me', phone: '+15125550154', entity: 'individual', filing: 'single', stage: 'partial', assigned: 'staff-priya', tags: [], profile: 'w2-investments', done: 0.7, daysWaiting: 6 },
-  { name: 'Cedar & Vine Hospitality', email: 'finance@cedarvine.co', phone: '+15125550131', entity: 's-corp', stage: 'awaiting', assigned: 'staff-dan', tags: ['entity'], profile: 'entity', done: 0, daysWaiting: 24 },
-  { name: 'Abigail Ferreira', email: 'abby.ferreira@gmail.com', phone: '+15125550107', entity: 'individual', filing: 'mfj', stage: 'filed', assigned: 'staff-priya', tags: [], profile: 'w2-simple', done: 1 },
-  { name: 'Desmond Oyelaran', email: 'd.oyelaran@yahoo.com', phone: '+15125550195', entity: 'individual', filing: 'single', stage: 'awaiting', assigned: 'staff-dan', tags: [], profile: 'schedule-c', done: 0, smsOptOut: true, daysWaiting: 15 },
-  { name: 'Margaret Lindqvist', email: 'meg.lindqvist@fastmail.com', phone: '+15125550122', entity: 'individual', filing: 'qw', stage: 'partial', assigned: 'staff-priya', tags: [], profile: 'retired', done: 0.6, daysWaiting: 9 },
-  { name: 'Rafael Montoya', email: 'rafa@montoyabuilds.com', phone: '+15125550148', entity: 'individual', filing: 'mfj', stage: 'partial', assigned: 'staff-dan', tags: [], profile: 'schedule-c', done: 0.35, daysWaiting: 17 },
-  { name: 'Ingrid Halvorsen', email: 'ingrid.h@icloud.com', phone: '+15125550171', entity: 'individual', filing: 'single', stage: 'not_started', assigned: 'staff-priya', tags: ['new'], profile: 'w2-simple', done: 0 },
-  { name: 'Solomon Adeyemi', email: 's.adeyemi@gmail.com', phone: '+15125550183', entity: 'individual', filing: 'mfj', stage: 'ready', assigned: 'staff-dan', tags: [], profile: 'rental', done: 1 },
-  { name: 'Beatrice Kowalczyk', email: 'bea.kowalczyk@outlook.com', phone: '+15125550115', entity: 'individual', filing: 'mfj', stage: 'partial', assigned: 'staff-priya', tags: ['high-value'], profile: 'partner', done: 0.45, daysWaiting: 21 },
-  { name: 'Harrow Creek Trust', email: 'trustee@harrowcreek.org', entity: 'trust', stage: 'awaiting', assigned: 'staff-dan', tags: ['entity'], profile: 'entity', done: 0, daysWaiting: 11 },
-  { name: 'Nadia Boulanger', email: 'nadia.b@proton.me', phone: '+15125550139', entity: 'individual', filing: 'single', stage: 'in_review', assigned: 'staff-priya', tags: [], profile: 'w2-investments', done: 1 },
-  { name: 'Emmanuel Kwakye', email: 'e.kwakye@gmail.com', phone: '+15125550167', entity: 'individual', filing: 'hoh', stage: 'awaiting', assigned: 'staff-dan', tags: [], profile: 'w2-simple', done: 0, daysWaiting: 27 },
-  { name: 'Saoirse Ó Braonáin', email: 'saoirse.ob@fastmail.com', phone: '+15125550152', entity: 'individual', filing: 'mfj', stage: 'partial', assigned: 'staff-priya', tags: [], profile: 'rental', done: 0.5, daysWaiting: 14 },
-  { name: 'Vikram Chandrasekhar', email: 'vikram.c@outlook.com', phone: '+15125550129', entity: 'individual', filing: 'mfj', stage: 'filed', assigned: 'staff-dan', tags: [], profile: 'partner', done: 1 },
-  { name: 'Odalys Restrepo', email: 'odalys.r@yahoo.com', phone: '+15125550144', entity: 'individual', filing: 'single', stage: 'partial', assigned: 'staff-priya', tags: [], profile: 'schedule-c', done: 0.25, daysWaiting: 22 },
-  { name: 'Bramble Lane Dental PC', email: 'office@bramblelanedental.com', phone: '+15125550158', entity: 's-corp', stage: 'partial', assigned: 'staff-dan', tags: ['entity', 'high-value'], profile: 'entity', done: 0.65, daysWaiting: 5 },
-  { name: 'Anneliese Vogt', email: 'a.vogt@icloud.com', phone: '+15125550136', entity: 'individual', filing: 'mfj', stage: 'awaiting', assigned: 'staff-priya', tags: [], profile: 'retired', done: 0, daysWaiting: 33 },
-  { name: 'Kofi Mensah', email: 'kofi.mensah@gmail.com', phone: '+15125550191', entity: 'individual', filing: 'single', stage: 'not_started', assigned: 'staff-dan', tags: ['new'], profile: 'w2-simple', done: 0 },
-  { name: 'Lucienne Brassard', email: 'l.brassard@proton.me', phone: '+15125550111', entity: 'individual', filing: 'mfj', stage: 'ready', assigned: 'staff-priya', tags: [], profile: 'w2-investments', done: 1 },
-  { name: 'Tobias Ferncliffe', email: 'tobias@ferncliffedesign.com', phone: '+15125550174', entity: 'individual', filing: 'single', stage: 'partial', assigned: 'staff-dan', tags: [], profile: 'schedule-c', done: 0.8, daysWaiting: 4 },
-  { name: 'Amara Nwachukwu', email: 'amara.n@outlook.com', phone: '+15125550127', entity: 'individual', filing: 'hoh', stage: 'awaiting', assigned: 'staff-priya', tags: [], profile: 'w2-simple', done: 0, daysWaiting: 18 },
-  { name: 'Gustav Lindenberg', email: 'g.lindenberg@fastmail.com', phone: '+15125550185', entity: 'individual', filing: 'mfj', stage: 'partial', assigned: 'staff-dan', tags: ['high-value'], profile: 'partner', done: 0.3, daysWaiting: 26 },
-  { name: 'Delphine Aubert', email: 'delphine.a@icloud.com', phone: '+15125550162', entity: 'individual', filing: 'single', stage: 'in_review', assigned: 'staff-priya', tags: [], profile: 'rental', done: 1 },
-  { name: 'Isaiah Bergen', email: 'isaiah.bergen@gmail.com', phone: '+15125550118', entity: 'individual', filing: 'mfj', stage: 'blocked', assigned: 'staff-dan', tags: ['needs-attention'], profile: 'schedule-c', done: 0.15, daysWaiting: 38 },
-  { name: 'Wren & Willow Studio LLC', email: 'hello@wrenwillow.studio', phone: '+15125550146', entity: 'partnership', stage: 'awaiting', assigned: 'staff-priya', tags: ['entity'], profile: 'entity', done: 0, daysWaiting: 13 },
-  { name: 'Charlotte Ravensworth', email: 'c.ravensworth@yahoo.com', phone: '+15125550178', entity: 'individual', filing: 'qw', stage: 'partial', assigned: 'staff-dan', tags: [], profile: 'retired', done: 0.55, daysWaiting: 10 },
-];
-
-// ── Prior-year profiles ─────────────────────────────────────────────────────
-
-function priorFor(seed: Seed): PriorYearReturn {
-  const p = emptyPriorYear(TAX_YEAR - 1);
-  p.confidence = 0.93;
-  p.filingStatus = seed.filing;
-  p.entityType = seed.entity;
-  p.formType = seed.entity === 'individual' ? '1040' : seed.entity === 'partnership' ? '1065' : '1120S';
-  p.taxpayerName = seed.name;
-  p.dependents = seed.filing === 'hoh' ? 2 : seed.filing === 'mfj' ? 1 : 0;
-  p.state = 'TX';
-
-  const employers = ['Acme Robotics', 'Northwind Health', 'Bluebonnet Systems', 'Cardinal Media'];
-  const banks = ['Frost Bank', 'Charles Schwab', 'Ally Bank'];
-
-  switch (seed.profile) {
-    case 'w2-simple':
-      p.lines['1z'] = 78_400;
-      p.documentCounts.w2 = 1;
-      p.issuers.push({ docTypeId: 'w2', name: employers[0] });
-      break;
-    case 'w2-investments':
-      p.lines['1z'] = 164_200;
-      p.lines['2b'] = 2_140;
-      p.lines['3b'] = 6_880;
-      p.lines['7'] = 18_400;
-      p.schedules.push('B', 'D', 'A');
-      p.itemized = true;
-      p.lines['schA-1'] = 4_200;
-      p.lines['schA-14'] = 9_500;
-      p.documentCounts.w2 = 2;
-      p.documentCounts['1099-int'] = 1;
-      p.documentCounts['1099-div'] = 1;
-      p.documentCounts['1099-b'] = 1;
-      p.documentCounts['1098'] = 1;
-      p.issuers.push(
-        { docTypeId: 'w2', name: employers[0] },
-        { docTypeId: 'w2', name: employers[1] },
-        { docTypeId: '1099-int', name: banks[0] },
-        { docTypeId: '1099-div', name: banks[1] },
-        { docTypeId: '1099-b', name: banks[1] },
-        { docTypeId: '1098', name: 'Rocket Mortgage' },
-      );
-      break;
-    case 'schedule-c':
-      p.lines['sch1-3'] = 92_600;
-      p.lines['26'] = 14_000;
-      p.schedules.push('1', 'C', 'SE', '8829', '4562');
-      p.documentCounts['1099-nec'] = 3;
-      p.documentCounts['1099-k'] = 1;
-      p.issuers.push(
-        { docTypeId: '1099-nec', name: 'Cardinal Media' },
-        { docTypeId: '1099-nec', name: 'Lantern Studios' },
-        { docTypeId: '1099-nec', name: 'Harbor Creative' },
-        { docTypeId: '1099-k', name: 'Stripe' },
-      );
-      break;
-    case 'rental':
-      p.lines['1z'] = 96_000;
-      p.lines['sch1-5'] = 31_200;
-      p.schedules.push('1', 'E', 'A', '4562');
-      p.itemized = true;
-      p.lines['schA-14'] = 6_400;
-      p.documentCounts.w2 = 1;
-      p.documentCounts['rental-summary'] = 2;
-      p.documentCounts['1098'] = 2;
-      p.documentCounts['property-tax'] = 2;
-      p.issuers.push(
-        { docTypeId: 'w2', name: employers[2] },
-        { docTypeId: '1098', name: 'Frost Bank' },
-      );
-      break;
-    case 'partner':
-      p.lines['1z'] = 210_000;
-      p.lines['2b'] = 5_600;
-      p.lines['3b'] = 12_400;
-      p.lines['sch1-5'] = 88_000;
-      p.schedules.push('1', 'B', 'D', 'E', 'A');
-      p.itemized = true;
-      p.lines['schA-14'] = 22_000;
-      p.documentCounts.w2 = 1;
-      p.documentCounts['k1-1065'] = 2;
-      p.documentCounts['k1-1120s'] = 1;
-      p.documentCounts['1099-div'] = 1;
-      p.documentCounts['1099-b'] = 1;
-      p.documentCounts['1098'] = 1;
-      p.issuers.push(
-        { docTypeId: 'w2', name: employers[3] },
-        { docTypeId: 'k1-1065', name: 'Lonestar Ventures LP' },
-        { docTypeId: 'k1-1065', name: 'Brazos Real Estate Partners' },
-        { docTypeId: 'k1-1120s', name: 'Meridian Advisory Group' },
-        { docTypeId: '1099-b', name: 'Fidelity' },
-      );
-      break;
-    case 'retired':
-      p.lines['4b'] = 42_000;
-      p.lines['6a'] = 38_400;
-      p.lines['2b'] = 3_100;
-      p.lines['3b'] = 8_900;
-      p.schedules.push('B', 'D');
-      p.documentCounts['1099-r'] = 2;
-      p.documentCounts['ssa-1099'] = 1;
-      p.documentCounts['1099-int'] = 2;
-      p.documentCounts['1099-div'] = 1;
-      p.issuers.push(
-        { docTypeId: '1099-int', name: banks[0] },
-        { docTypeId: '1099-div', name: banks[2] },
-      );
-      break;
-    case 'entity':
-      p.schedules.push('4562');
-      p.documentCounts['profit-loss'] = 1;
-      p.documentCounts['balance-sheet'] = 1;
-      p.documentCounts['payroll-summary'] = 1;
-      break;
-  }
-  return p;
-}
-
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-const slugId = (name: string) =>
-  name
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40);
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
 const daysAhead = (n: number) => new Date(Date.now() + n * 86_400_000);
-const sortNameOf = (s: Seed) => {
-  if (s.entity !== 'individual') return s.name;
-  const parts = s.name.split(/\s+/);
-  return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}`;
-};
+
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * How each document arrived, drawn from a fixed distribution so the demo is the
+ * same on every machine.
+ *
+ * This is the only thing the seed chooses. It does not choose a confidence: the
+ * classifier reads whatever text the chosen capture leaves behind, and the score
+ * follows. The weights are what a firm's February actually looks like — most
+ * documents arrive clean from a payroll provider or a broker, a steady minority
+ * are scans, and a stubborn tail are photographs taken on a phone at the kitchen
+ * table, which is exactly the tail the review queue exists for.
+ */
+const CAPTURE_MIX: Capture[] = [
+  ...Array<Capture>(9).fill('efile'),
+  ...Array<Capture>(7).fill('portal'),
+  ...Array<Capture>(6).fill('scan'),
+  ...Array<Capture>(3).fill('fax'),
+  ...Array<Capture>(4).fill('photo'),
+  ...Array<Capture>(1).fill('photo-dark'),
+];
+
+function captureFor(documentId: string, docTypeId: string): Capture {
+  // Nobody e-files a driver's licence or a voided cheque; they photograph one
+  // and scan the other. Forcing the realistic channel matters more than the mix.
+  if (docTypeId === 'photo-id') return hash(documentId) % 3 === 0 ? 'photo-dark' : 'photo';
+  if (docTypeId === 'voided-check') return hash(documentId) % 2 === 0 ? 'photo' : 'scan';
+  if (docTypeId === 'charitable' || docTypeId === 'mileage-log' || docTypeId === 'closing-statement') {
+    const drawn = CAPTURE_MIX[hash(documentId) % CAPTURE_MIX.length];
+    return drawn === 'efile' ? 'scan' : drawn;
+  }
+  // A consolidated brokerage package is how dividends actually arrive.
+  if (docTypeId === '1099-div' && hash(documentId) % 3 === 0) return 'consolidated';
+  return CAPTURE_MIX[hash(documentId) % CAPTURE_MIX.length];
+}
+
+/** The clean end of the mix, for documents that have already cleared review. */
+const CLEAN_MIX: Capture[] = ['efile', 'efile', 'efile', 'portal', 'portal', 'scan', 'scan', 'fax'];
+
+/**
+ * A document that a preparer already accepted read cleanly — that is *why* it is
+ * out of the queue. The awkward captures are the ones still sitting in review,
+ * which is the honest reason the queue skews toward low confidence while the
+ * book as a whole does not.
+ */
+function acceptedCapture(documentId: string, docTypeId: string): Capture {
+  if (docTypeId === 'photo-id' || docTypeId === 'voided-check') return 'scan';
+  if (docTypeId === '1099-div' && hash(documentId) % 3 === 0) return 'consolidated';
+  return CLEAN_MIX[hash(documentId) % CLEAN_MIX.length];
+}
+
+/**
+ * Things taxpayers send that nobody asked for.
+ *
+ * Every real firm's review queue is half this: a photograph of a licence, a
+ * bank statement "in case you need it", a brochure from an insurer. They carry
+ * no request, they are why the queue needs a human, and without them the demo's
+ * flagship screen has a dozen rows and no argument.
+ */
+const UNSOLICITED: { docTypeId: string; capture: Capture }[] = [
+  { docTypeId: 'photo-id', capture: 'photo' },
+  { docTypeId: 'bank-statements', capture: 'photo' },
+  { docTypeId: 'medical-expenses', capture: 'fax' },
+  { docTypeId: 'charitable', capture: 'photo-dark' },
+  { docTypeId: '1099-misc', capture: 'photo' },
+  { docTypeId: 'property-tax', capture: 'scan' },
+  { docTypeId: 'closing-statement', capture: 'photo' },
+  { docTypeId: '1098', capture: 'photo' },
+  { docTypeId: 'bank-statements', capture: 'scan' },
+  { docTypeId: 'mileage-log', capture: 'photo' },
+];
+
+/**
+ * Writes the bytes behind a `storagePath`.
+ *
+ * The `taxfaxProcessed` marker is the same one the rename step sets, and the
+ * ingest trigger returns early when it sees it. Without it, uploading 200 seeded
+ * PDFs would kick off 200 real classification runs against records that are
+ * already final — the seed would be racing the pipeline for its own data.
+ *
+ * `contentDisposition: inline` is load-bearing, not tidiness. Storage defaults
+ * an object with no disposition to `attachment`, and a browser answers that by
+ * downloading the file instead of drawing it — so the review queue's `<iframe>`
+ * paints a blank white rectangle even though the bytes arrive with a 200 and a
+ * `%PDF-` header. The preview pane is the demo; it has to render.
+ */
+async function upload(path: string, body: Buffer, contentType: string): Promise<void> {
+  await bucket.file(path).save(body, {
+    resumable: false,
+    contentType,
+    metadata: {
+      contentType,
+      contentDisposition: `inline; filename="${path.split('/').pop()}"`,
+      metadata: { taxfaxProcessed: '1' },
+    },
+  });
+}
+
+/** Uploads in small waves — 300 sequential round-trips makes a re-seed a coffee break. */
+async function uploadAll(files: { path: string; body: Buffer; contentType: string }[]): Promise<void> {
+  const WAVE = 8;
+  for (let i = 0; i < files.length; i += WAVE) {
+    await Promise.all(files.slice(i, i + WAVE).map((f) => upload(f.path, f.body, f.contentType)));
+  }
+}
+
 
 async function wipe() {
   const firm = db.doc(paths.firm(FIRM_ID));
   await db.recursiveDelete(firm).catch(() => {});
   for (const s of STAFF) await db.doc(paths.user(s.uid)).delete().catch(() => {});
+  // Documents are bytes now, so a re-seed has to clear the bucket too or the
+  // previous run's files linger under paths no Firestore record points at.
+  await bucket.deleteFiles({ prefix: `firms/${FIRM_ID}/` }).catch(() => {});
 }
 
 async function seedAuth() {
@@ -310,6 +265,9 @@ async function seedFirm(portalUid: string) {
       supportPhone: '+15125550100',
     },
     chase: { ...DEFAULT_CHASE_SETTINGS, signature: 'Ava Rowe\nWhitfield & Rowe CPAs' },
+    // On, explicitly. It defaults to on when absent, but a demo firm that never
+    // states it leaves the buyer unable to tell the feature exists at all.
+    multilingual: { enabled: true },
     seats: 12,
     plan: 'firm',
     onboarding: { completedSteps: ['firm', 'import', 'sending', 'staff'], dismissed: true },
@@ -345,10 +303,51 @@ async function seedFirm(portalUid: string) {
   });
 }
 
+/**
+ * Resolves a client's language the way `generateChecklist` does in production:
+ * a Schedule LEP election found on last year's return is evidence, and a human
+ * always outranks it.
+ *
+ * `detectedCode` is what the real parser pulled off the generated PDF, not what
+ * the seed list says. An election we recognise but cannot write (Polish, say)
+ * still resolves to English — with the election recorded, so the firm is told
+ * rather than quietly served English.
+ */
+function languageFor(seed: Seed, detectedCode: string | undefined): ClientLanguage | undefined {
+  const elected = detectedCode ? resolveLepCode(detectedCode) : null;
+  const detected: ClientLanguage | undefined =
+    elected && elected.kind !== 'unknown'
+      ? {
+          locale: elected.locale,
+          source: 'detected',
+          lepCode: elected.code,
+          ...(elected.kind === 'unsupported'
+            ? { unsupported: { code: elected.code, language: elected.language } }
+            : {}),
+          updatedAt: daysAgo(60),
+        }
+      : undefined;
+
+  if (!seed.languageBy) return detected;
+  if (!isLocaleId(seed.languageBy.locale)) {
+    throw new Error(`${seed.name} is set to “${seed.languageBy.locale}”, which is not a locale we can write.`);
+  }
+  return {
+    locale: seed.languageBy.locale,
+    source: seed.languageBy.source,
+    ...(detected?.lepCode ? { lepCode: detected.lepCode } : {}),
+    ...(detected?.unsupported ? { unsupported: detected.unsupported } : {}),
+    updatedAt: daysAgo(21),
+  };
+}
+
 async function seedClients() {
   const activity: { type: string; summary: string; clientId?: string; at: Date; actor: object }[] = [];
   let totalRequests = 0;
   let totalDocs = 0;
+  let totalBytes = 0;
+  const confidences: number[] = [];
+  const languages: string[] = [];
 
   for (const seed of CLIENTS) {
     const clientId = slugId(seed.name);
@@ -391,42 +390,59 @@ async function seedClients() {
       } as DocRequest);
     }
 
-    // Documents for everything received or accepted
+    // Documents for everything received or accepted. Bytes and classification
+    // both come from the generator, so what the preview pane shows and what the
+    // evidence panel claims are the same document.
     const docs: Record<string, unknown>[] = [];
+    const uploads: { path: string; body: Buffer; contentType: string }[] = [];
+
     for (const r of requests) {
       if (r.status === 'pending' || r.status === 'waived') continue;
       const issuer = r.expectedIssuers?.[0];
       const documentId = `${clientId}-${r.docTypeId}`;
+      const built = buildDocument({
+        docTypeId: r.docTypeId,
+        capture:
+          r.status === 'accepted'
+            ? acceptedCapture(documentId, r.docTypeId)
+            : captureFor(documentId, r.docTypeId),
+        clientName: seed.name,
+        issuer,
+        taxYear: TAX_YEAR,
+        seed: documentId,
+      });
+
+      // The pipeline names the file after what it decided, not after what was
+      // asked for — a document it could not place lands as "Other", and the
+      // demo should show that rather than a tidy name nobody would have got.
+      const filedAs = built.classification.docTypeId;
       const name = canonicalName({
         clientDisplayName: seed.name,
         taxYear: TAX_YEAR,
-        docTypeId: r.docTypeId,
-        issuer,
-        originalName: 'IMG_4821.HEIC',
-        contentType: 'application/pdf',
+        docTypeId: filedAs,
+        issuer: built.classification.issuer ?? issuer,
+        originalName: built.originalName,
+        contentType: built.contentType,
       });
+      const storagePath = documentPath(FIRM_ID, TAX_YEAR, clientId, documentId, name);
+      uploads.push({ path: storagePath, body: built.pdf, contentType: built.contentType });
+
       r.documentIds = [documentId];
       docs.push({
         id: documentId,
         firmId: FIRM_ID,
         clientId,
         taxYear: TAX_YEAR,
-        storagePath: documentPath(FIRM_ID, TAX_YEAR, clientId, documentId, name),
-        originalName: `IMG_${4000 + docs.length}.HEIC`,
+        storagePath,
+        originalName: built.originalName,
         canonicalName: name,
-        contentType: 'application/pdf',
-        sizeBytes: 240_000 + docs.length * 11_000,
-        pageCount: r.docTypeId === '1099-b' ? 34 : 1,
-        state: r.status === 'accepted' ? 'accepted' : 'classified',
-        classification: {
-          docTypeId: r.docTypeId,
-          confidence: 0.94,
-          issuer,
-          taxYear: TAX_YEAR,
-          evidence: [`Matched form title “${docType(r.docTypeId).label}” on page 1`],
-          alternates: [],
-          method: 'text',
-        },
+        contentType: built.contentType,
+        sizeBytes: built.pdf.length,
+        pageCount: built.pageCount,
+        // A preparer who accepted the document outranks the classifier; anything
+        // still in the queue keeps the state the pipeline's thresholds gave it.
+        state: r.status === 'accepted' ? 'accepted' : built.state,
+        classification: { ...built.classification, taxYear: TAX_YEAR } satisfies Classification,
         requestId: r.id,
         uploadedBy: 'portal-user',
         uploadedVia: 'portal',
@@ -436,6 +452,102 @@ async function seedClients() {
         reviewedAt: r.acceptedAt,
       });
     }
+
+    // Uploads nobody asked for. These are what actually fills a February review
+    // queue, and they are the only documents here with no request behind them.
+    if (seed.stage !== 'not_started' && seed.stage !== 'filed') {
+      const count = hash(clientId) % 3;
+      for (let i = 0; i < count; i++) {
+        const pickIdx = (hash(`${clientId}-extra-${i}`) >>> 0) % UNSOLICITED.length;
+        const extra = UNSOLICITED[pickIdx];
+        const documentId = `${clientId}-unsolicited-${i}`;
+        const built = buildDocument({
+          docTypeId: extra.docTypeId,
+          capture: extra.capture,
+          clientName: seed.name,
+          taxYear: TAX_YEAR,
+          seed: documentId,
+        });
+        const name = canonicalName({
+          clientDisplayName: seed.name,
+          taxYear: TAX_YEAR,
+          docTypeId: built.classification.docTypeId,
+          issuer: built.classification.issuer,
+          originalName: built.originalName,
+          contentType: built.contentType,
+        });
+        const storagePath = documentPath(FIRM_ID, TAX_YEAR, clientId, documentId, name);
+        uploads.push({ path: storagePath, body: built.pdf, contentType: built.contentType });
+        docs.push({
+          id: documentId,
+          firmId: FIRM_ID,
+          clientId,
+          taxYear: TAX_YEAR,
+          storagePath,
+          originalName: built.originalName,
+          canonicalName: name,
+          contentType: built.contentType,
+          sizeBytes: built.pdf.length,
+          pageCount: built.pageCount,
+          state: built.state,
+          classification: { ...built.classification, taxYear: TAX_YEAR } satisfies Classification,
+          uploadedBy: 'portal-user',
+          uploadedVia: 'portal',
+          uploadedAt: daysAgo(Math.max(1, (seed.daysWaiting ?? 12) - i - 1)),
+          processedAt: daysAgo(Math.max(1, (seed.daysWaiting ?? 12) - i - 1)),
+        });
+      }
+    }
+
+    // Last year's return: the evidence behind every checklist on the account,
+    // and — for the clients who elected one — where their language comes from.
+    const elected = seed.lepCode
+      ? LEP_LANGUAGES.find((l) => l.code === seed.lepCode)
+      : undefined;
+    const priorDocId = `${clientId}-prior-return`;
+    const priorReturn = buildPriorReturn({
+      clientName: seed.name,
+      taxYear: TAX_YEAR - 1,
+      formType: prior.formType as '1040' | '1065' | '1120S',
+      filingStatus: seed.filing,
+      lepCode: elected?.code,
+      lepLanguage: elected?.language,
+      seed: priorDocId,
+    });
+    const priorName = canonicalName({
+      clientDisplayName: seed.name,
+      taxYear: TAX_YEAR - 1,
+      docTypeId: 'prior-return',
+      originalName: priorReturn.originalName,
+      contentType: priorReturn.contentType,
+    });
+    const priorPath = documentPath(FIRM_ID, TAX_YEAR, clientId, priorDocId, priorName);
+    uploads.push({ path: priorPath, body: priorReturn.pdf, contentType: priorReturn.contentType });
+    docs.push({
+      id: priorDocId,
+      firmId: FIRM_ID,
+      clientId,
+      taxYear: TAX_YEAR,
+      storagePath: priorPath,
+      originalName: priorReturn.originalName,
+      canonicalName: priorName,
+      contentType: priorReturn.contentType,
+      sizeBytes: priorReturn.pdf.length,
+      pageCount: priorReturn.pageCount,
+      state: 'accepted',
+      classification: { ...priorReturn.classification, taxYear: TAX_YEAR - 1 } satisfies Classification,
+      uploadedBy: seed.assigned,
+      uploadedVia: 'staff',
+      uploadedAt: started,
+      processedAt: started,
+      reviewedBy: seed.assigned,
+      reviewedAt: started,
+    });
+
+    // Read the election back off the generated PDF rather than trusting the seed
+    // list. If the parser ever stops finding a code the demo goes English, which
+    // is the truthful outcome — not a language nothing on file supports.
+    const language = languageFor(seed, parseReturnText(priorReturn.text.split('\f')).lepCode);
 
     const accepted = requests.filter((r) => r.status === 'accepted').length;
     const received = requests.filter((r) => r.status === 'received' || r.status === 'accepted').length;
@@ -463,6 +575,7 @@ async function seedClients() {
       assignedTo: seed.assigned,
       tags: seed.tags,
       stage: seed.stage,
+      language,
       progress: {
         total: requests.length,
         received,
@@ -522,14 +635,37 @@ async function seedClients() {
     }
     await batch.commit();
 
+    // Firestore first, bytes second. `onDocumentUploaded` skips an object whose
+    // record is already final, so writing the record ahead of the upload is a
+    // second belt alongside the `taxfaxProcessed` marker.
+    await uploadAll(uploads);
     totalRequests += requests.length;
     totalDocs += docs.length;
+    totalBytes += uploads.reduce((n, u) => n + u.body.length, 0);
+    for (const d of docs) confidences.push((d.classification as Classification).confidence);
+    if (language) languages.push(`${language.locale} (${language.source})`);
 
     if (seed.stage !== 'not_started') {
       activity.push({
         type: 'checklist_generated',
         clientId,
         summary: `${staffName} generated a ${requests.length}-item checklist for ${seed.name} from their ${TAX_YEAR - 1} return`,
+        at: started,
+        actor: { uid: seed.assigned, name: staffName, kind: 'staff' },
+      });
+    }
+    if (language?.lepCode) {
+      const outcome = resolveLepCode(language.lepCode);
+      const inUse = localeRecord(language.locale).englishName;
+      activity.push({
+        type: 'language_detected',
+        clientId,
+        summary:
+          outcome.kind === 'unsupported'
+            ? `${seed.name} elected ${outcome.language} on their ${TAX_YEAR - 1} Schedule LEP. TaxFax can't write ${outcome.language} yet, so their messages stay in English.`
+            : outcome.kind === 'supported' && language.locale === outcome.locale
+              ? `${seed.name} elected ${outcome.language} on their ${TAX_YEAR - 1} Schedule LEP — their messages will go out in ${outcome.language}.`
+              : `${seed.name} elected ${outcome.language} on their ${TAX_YEAR - 1} Schedule LEP, but you have them set to ${inUse}. Your setting stands.`,
         at: started,
         actor: { uid: seed.assigned, name: staffName, kind: 'staff' },
       });
@@ -568,7 +704,32 @@ async function seedClients() {
   }
   await batch.commit();
 
-  return { totalRequests, totalDocs, activity: Math.min(activity.length, 200) };
+  return {
+    totalRequests,
+    totalDocs,
+    totalBytes,
+    activity: Math.min(activity.length, 200),
+    confidences,
+    languages,
+  };
+}
+
+/** A one-line histogram, so a re-seed says out loud what it just claimed. */
+function histogram(values: number[]): string {
+  const bands: [string, (v: number) => boolean][] = [
+    ['0.95–1.00  near-certain', (v) => v >= 0.95],
+    ['0.82–0.95  auto-filed  ', (v) => v >= 0.82 && v < 0.95],
+    ['0.45–0.82  needs review', (v) => v >= 0.45 && v < 0.82],
+    ['0.00–0.45  filed as Other', (v) => v < 0.45],
+  ];
+  const width = 34;
+  return bands
+    .map(([label, test]) => {
+      const n = values.filter(test).length;
+      const bar = '█'.repeat(Math.round((n / Math.max(1, values.length)) * width));
+      return `    ${label}  ${String(n).padStart(3)}  ${bar}`;
+    })
+    .join('\n');
 }
 
 // ── Run ─────────────────────────────────────────────────────────────────────
@@ -584,8 +745,14 @@ console.log(`
   Staff      ${STAFF.length}
   Clients    ${CLIENTS.length}
   Requests   ${stats.totalRequests}
-  Documents  ${stats.totalDocs}
+  Documents  ${stats.totalDocs}  (${(stats.totalBytes / 1e6).toFixed(1)} MB of PDFs in Storage)
   Activity   ${stats.activity}
+
+  Classifier confidence, as measured on the seeded bytes — nothing here is set
+  by hand; ${new Set(stats.confidences).size} distinct values across ${stats.confidences.length} documents:
+${histogram(stats.confidences)}
+
+  Languages  ${stats.languages.length} of ${CLIENTS.length} clients — ${[...new Set(stats.languages)].sort().join(', ')}
 
   Sign in    ava@whitfieldrowe.com / ${PASSWORD}
   Portal     ${CLIENTS[0].email} / ${PASSWORD}

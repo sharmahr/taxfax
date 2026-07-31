@@ -25,13 +25,14 @@ export async function acceptInvite(token: string): Promise<{ firmId: string }> {
   return res.data;
 }
 
-export function defaultTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
-  } catch {
-    return 'America/New_York';
-  }
-}
+export {
+  FIRM_TIMEZONES,
+  FALLBACK_TIMEZONE,
+  isFirmTimezone,
+  resolveFirmTimezone,
+  defaultTimezone,
+  type ResolvedTimezone,
+} from './timezone';
 
 /** Jan–Apr files last year's return; the rest of the year preps the current one. */
 export function defaultTaxYear(now = new Date()): number {

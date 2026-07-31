@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { parsePhone } from './phone';
 import {
   ENTITY_TYPE_LABEL,
   FILING_STATUS_LABEL,
@@ -13,8 +14,8 @@ import {
  * validation the `importClients` callable runs — so the preview tells the truth
  * about what the server will do rather than guessing.
  *
- * ponytail: the four validators below (email/phone/name/tags) mirror
- * functions/src/lib/validate.ts exactly. They live in Cloud Functions, not the
+ * ponytail: the validators below (email/name/tags, and `phone.ts` next door)
+ * mirror functions/src/lib/validate.ts. They live in Cloud Functions, not the
  * shared package, so they can't be imported; the preview would lie without them.
  */
 
@@ -96,7 +97,6 @@ export type FieldMapping = Partial<Record<ImportField, number>>;
 
 // ── Server-mirrored validators ───────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const E164_RE = /^\+[1-9]\d{7,14}$/;
 
 export function normEmail(value: string): string | null {
   const email = value.trim().toLowerCase();
@@ -104,19 +104,7 @@ export function normEmail(value: string): string | null {
   return EMAIL_RE.test(email) ? email : null;
 }
 
-export function normPhone(value: string): string | null {
-  const raw = value.trim();
-  if (raw.length === 0) return null;
-  const hadPlus = raw.startsWith('+');
-  const digits = raw.replace(/[^\d]/g, '');
-  if (digits.length === 0) return null;
-  let e164: string;
-  if (hadPlus) e164 = `+${digits}`;
-  else if (digits.length === 10) e164 = `+1${digits}`;
-  else if (digits.length === 11 && digits.startsWith('1')) e164 = `+${digits}`;
-  else e164 = `+${digits}`;
-  return E164_RE.test(e164) ? e164 : null;
-}
+export { normPhone, parsePhone, type PhoneParse } from './phone';
 
 export function cleanName(value: string, min = 1, max = 200): string | null {
   const name = value.replace(/\s+/g, ' ').trim();
@@ -329,9 +317,14 @@ export function buildPreview(rows: string[][], mapping: FieldMapping): PreviewRo
     }
 
     const phoneRaw = cell(row, mapping, 'phone');
-    const phone = phoneRaw ? normPhone(phoneRaw) : null;
-    if (phoneRaw && !phone) {
-      issues.push({ field: 'phone', level: 'warn', message: 'Phone isn’t dialable — imported without it, so no SMS.' });
+    const parsedPhone = parsePhone(phoneRaw);
+    const phone = parsedPhone.e164;
+    // A number we can't be sure of is flagged, never guessed at: a plausible
+    // wrong number is the one failure the firm would never catch.
+    if (parsedPhone.problem) {
+      issues.push({ field: 'phone', level: 'warn', message: parsedPhone.problem });
+    } else if (parsedPhone.note) {
+      issues.push({ field: 'phone', level: 'warn', message: parsedPhone.note });
     }
 
     const entityText = cell(row, mapping, 'entityType');
@@ -383,7 +376,10 @@ export function toPayload(rows: PreviewRow[]): ImportRowPayload[] {
     .map((r) => ({
       displayName: r.displayName,
       ...(r.emailRaw ? { email: r.emailRaw } : {}),
-      ...(r.phoneRaw ? { phone: r.phoneRaw } : {}),
+      // The already-normalized E.164, never the raw cell: the server's own
+      // normalizer would otherwise re-derive it, and anything it can't parse
+      // has already been flagged here rather than quietly reshaped.
+      ...(r.phone ? { phone: r.phone } : {}),
       entityType: r.entityType,
       ...(r.filingStatus ? { filingStatus: r.filingStatus } : {}),
       ...(r.tags.length ? { tags: r.tags } : {}),
