@@ -11,6 +11,8 @@ import {
   STARTER_CHECKLIST,
   generateChecklist as buildChecklist,
   type PriorYearReturn,
+  type ReasonKey,
+  type ReasonVars,
   type RequestPriority,
 } from '../../../packages/shared/src/index.ts';
 
@@ -23,9 +25,20 @@ import {
  */
 export const MIN_CONFIDENCE = 0.15;
 
+/**
+ * One line of the plan — structurally a `ChecklistHit`, so a rule's output is
+ * carried here whole rather than copied field by field.
+ *
+ * The reason travels twice: as the English sentence the firm's own console
+ * reads, and as the key plus the evidence the rule found, which is what lets a
+ * taxpayer read it in their own language. `reasonKey` is optional because a
+ * firm template and a preparer's own words have none.
+ */
 export interface MaterialItem {
   docTypeId: string;
   reason: string;
+  reasonKey?: ReasonKey;
+  reasonVars?: ReasonVars;
   priority: RequestPriority;
   quantity: number;
   issuers: string[];
@@ -38,24 +51,14 @@ export interface ChecklistPlan {
   items: MaterialItem[];
 }
 
-function personalised(prior: PriorYearReturn): MaterialItem[] {
-  return buildChecklist({ prior, taxYear: prior.taxYear + 1 }).map((h) => ({
-    docTypeId: h.docTypeId,
-    reason: h.reason,
-    priority: h.priority,
-    quantity: h.quantity,
-    issuers: h.issuers,
-  }));
+/** Everything last year's return says this client will owe again. */
+export function personalised(prior: PriorYearReturn): MaterialItem[] {
+  return buildChecklist({ prior, taxYear: prior.taxYear + 1 });
 }
 
-function starter(): MaterialItem[] {
-  return STARTER_CHECKLIST.map((s) => ({
-    docTypeId: s.docTypeId,
-    reason: s.reason,
-    priority: s.priority,
-    quantity: 1,
-    issuers: [],
-  }));
+/** The short list for a client with no prior-year return to read. */
+export function starter(): MaterialItem[] {
+  return STARTER_CHECKLIST.map((s) => ({ ...s, quantity: 1, issuers: [] }));
 }
 
 /**

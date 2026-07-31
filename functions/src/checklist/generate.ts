@@ -13,10 +13,8 @@ import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import type { WithFieldValue } from 'firebase-admin/firestore';
 import {
   DOC_TYPES,
-  STARTER_CHECKLIST,
   docType,
   emptyPriorYear,
-  generateChecklist as buildChecklist,
   localeRecord,
   paths,
   preferLanguage,
@@ -37,7 +35,7 @@ import { callableOptions, triggerOptions } from '../lib/options.js';
 import { optionalStr } from '../lib/validate.js';
 import { logActivity } from '../lib/activity.js';
 import { parsePriorYearReturnFromPdf } from './parsePriorYearReturn.js';
-import { planChecklist, type MaterialItem } from './plan.js';
+import { planChecklist, personalised, starter, type MaterialItem } from './plan.js';
 import { checklistSort, dueDateFor, requireId, staffActor, systemActor } from './util.js';
 
 const KNOWN_DOC_TYPES = new Set(DOC_TYPES.map((d) => d.id));
@@ -110,6 +108,8 @@ export async function materialize(
           taxYear: client.taxYear,
           docTypeId: item.docTypeId,
           reason: item.reason,
+          reasonKey: item.reasonKey,
+          reasonVars: item.reasonVars,
           source,
           priority: item.priority,
           expectedCount,
@@ -126,6 +126,12 @@ export async function materialize(
       } else if (prev.status === 'pending' && prev.documentIds.length === 0) {
         const patch: WithFieldValue<Partial<DocRequest>> = {
           reason: item.reason,
+          // Deleted rather than left behind: a reason refreshed from a weaker
+          // parse, or overlaid from a template, must not keep the evidence the
+          // old one found, or the taxpayer reads a sentence naming payers that
+          // are no longer on the list.
+          reasonKey: item.reasonKey ?? FieldValue.delete(),
+          reasonVars: item.reasonVars ?? FieldValue.delete(),
           source,
           priority: item.priority,
           expectedCount,
@@ -191,14 +197,7 @@ export async function generateChecklistForClient(
   opts: { prior: PriorYearReturn; sourceDocumentId?: string; actor: Activity['actor'] },
 ): Promise<MaterializeResult> {
   const { prior, sourceDocumentId, actor } = opts;
-  const hits = buildChecklist({ prior, taxYear: prior.taxYear + 1 });
-  const items: MaterialItem[] = hits.map((h) => ({
-    docTypeId: h.docTypeId,
-    reason: h.reason,
-    priority: h.priority,
-    quantity: h.quantity,
-    issuers: h.issuers,
-  }));
+  const items = personalised(prior);
 
   const priorYear: Client['priorYear'] | undefined = sourceDocumentId
     ? {
@@ -283,15 +282,7 @@ export async function applyStarterChecklist(
   clientId: string,
   opts: { actor: Activity['actor'] },
 ): Promise<MaterializeResult> {
-  const items: MaterialItem[] = STARTER_CHECKLIST.map((s) => ({
-    docTypeId: s.docTypeId,
-    reason: s.reason,
-    priority: s.priority,
-    quantity: 1,
-    issuers: [],
-  }));
-
-  const { result, client } = await materialize(firmId, clientId, items, 'template', undefined, true);
+  const { result, client } = await materialize(firmId, clientId, starter(), 'template', undefined, true);
 
   await logActivity(firmId, {
     type: 'checklist_generated',

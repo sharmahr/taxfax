@@ -375,6 +375,12 @@ async function seedClients() {
         taxYear: TAX_YEAR,
         docTypeId: hit.docTypeId,
         reason: hit.reason,
+        // The English sentence is for the preparer's console; the key and the
+        // evidence behind it are what let the portal say the same thing in the
+        // taxpayer's language. Both travel, or the demo's Arabic client reads
+        // their checklist in English.
+        reasonKey: hit.reasonKey,
+        reasonVars: hit.reasonVars,
         source: 'prior_year',
         priority: hit.priority,
         expectedCount: hit.quantity,

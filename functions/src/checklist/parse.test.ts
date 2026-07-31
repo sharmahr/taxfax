@@ -21,6 +21,8 @@ import { planChecklist, MIN_CONFIDENCE } from './plan.ts';
 import {
   emptyPriorYear,
   generateChecklist,
+  isReasonKey,
+  reasonFor,
   STARTER_CHECKLIST,
   type ChecklistHit,
 } from '../../../packages/shared/src/index.ts';
@@ -308,5 +310,42 @@ none of the totals or form headings are legible on this page.`,
     const at = { ...emptyPriorYear(2023), confidence: MIN_CONFIDENCE };
     assert.equal(planChecklist(below).source, 'starter');
     assert.equal(planChecklist(at).source, 'prior_year');
+  });
+
+  // The sentences asserted above are the English ones, which is what the firm's
+  // console reads. The taxpayer reads the same reason assembled from their own
+  // dictionary, and that needs the key and the evidence as data — both optional
+  // on the stored request, so a planner that drops them compiles happily and
+  // the taxpayer silently gets a language they told the IRS they can't read.
+
+  it('plans every reason as a key, on the personalised list and the starter one', () => {
+    for (const plan of [planChecklist(prior), planChecklist(emptyPriorYear(2023))]) {
+      const keyless = plan.items.filter((i) => !isReasonKey(i.reasonKey)).map((i) => i.docTypeId);
+      assert.deepEqual(
+        keyless,
+        [],
+        `${plan.source}: ${keyless.join(', ')} planned with no reason key — those lines reach the taxpayer in English.`,
+      );
+    }
+  });
+
+  it('keeps the evidence a rule found as data, not dissolved into the sentence', () => {
+    const w2 = planChecklist(prior).items.find((i) => i.docTypeId === 'w2');
+    assert.ok(w2, 'no W-2 line planned — the fixture no longer proves anything');
+    assert.equal(w2.reasonKey, 'reason.w2IssuersMany');
+    assert.deepEqual(
+      w2.reasonVars,
+      { count: 2, issuers: ['Acme Corporation', 'Northwind Logistics LLC'] },
+      'The two employers survived into English but not into the evidence — a translated reason would name nobody.',
+    );
+
+    const arabic = reasonFor('ar', w2);
+    assert.notEqual(arabic, w2.reason, 'The Arabic reason came back in English.');
+    for (const employer of ['Acme Corporation', 'Northwind Logistics LLC']) {
+      assert.ok(
+        arabic.includes(employer),
+        `The Arabic reason does not name ${employer} — the sentence that makes a taxpayer go and find the paper.`,
+      );
+    }
   });
 });
