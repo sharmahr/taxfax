@@ -127,11 +127,13 @@ async function signUp(page: Page, ownerName: string, firmName: string, email: st
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill('taxfax-e2e-2026');
   await page.getByRole('button', { name: /create workspace/i }).click();
-  // createFirm provisions server-side, then the app redirects off /signup (it
-  // now lands on /onboarding). Assert the success invariant — that we've left
-  // the signup page — rather than a specific destination, so this stays green
-  // while the post-signup landing route is in flux.
-  await expect(page).not.toHaveURL(/\/signup$/, { timeout: 30_000 });
+  // createFirm provisions server-side, then the app routes a brand-new firm
+  // straight into the guided flow, because a firm with no clients has nothing
+  // to read on a dashboard. Waiting for the app's own navigation rather than
+  // issuing our own `goto('/onboarding')` is both the fix for a real race — our
+  // goto could be interrupted mid-flight by the app's, which is what CI saw —
+  // and the only coverage this destination has anywhere.
+  await page.waitForURL(/\/onboarding/, { timeout: 30_000 });
 }
 
 /** The firm this run just provisioned — the newest with our clean name. */
@@ -176,7 +178,6 @@ test('firm signs up, imports a messy CSV, and a re-run is a no-op', async ({ pag
     .not.toBe('');
 
   // ── 2. Into the guided flow, step 1: firm profile ──────────────────────────
-  await page.goto('/onboarding');
   await expect(page.getByRole('heading', { name: 'Set up your firm' })).toBeVisible({ timeout: 25_000 });
   await shot(page, info, '01-profile');
 
