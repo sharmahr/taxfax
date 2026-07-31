@@ -188,9 +188,20 @@ jobs:
   # ── Deploy ─────────────────────────────────────────────────────────────────
   # main only, and only behind every check above. Rules deploy before hosting so
   # a new client build is never live against the previous security model.
+  #
+  # Gated on the DEPLOY_ENABLED repo variable because the project is not yet
+  # provisioned: the Firestore database has never been created (the databases
+  # list returns empty) and there is no default Storage bucket, so `firebase
+  # deploy` cannot succeed no matter what this workflow does. Leaving it to fail
+  # every run would make a red pipeline the normal state and destroy the signal
+  # from the six checks above. Flip the variable on once provisioning and the
+  # service-account roles are in place:
+  #   gh variable set DEPLOY_ENABLED --body true
   deploy:
     name: Deploy to Firebase
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      && vars.DEPLOY_ENABLED == 'true'
     needs: [domain, typecheck, rules, functions, constraints, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 20
