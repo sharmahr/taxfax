@@ -9,6 +9,7 @@ import { canonicalName, clientToken, documentPath, parseDocumentPath, slugify } 
 import { cadenceCompression, nextSendableSlot, renderEmail, renderSms, stepDueAt } from './chase.ts';
 import { CHASE_PROFILES } from './chase.ts';
 import { DOC_TYPES, docType } from './taxonomy.ts';
+import { isE164, isEmail, normEmail, normPhone } from './contact.ts';
 import {
   DESCRIPTOR_DOC_TYPE_IDS,
   DICTIONARIES,
@@ -534,6 +535,92 @@ Ava Okonkwo · Whitfield & Rowe`,
       `${id}: a string with no interpolation must carry no bidi controls`,
     );
   }
+}
+
+
+// ── Addresses and numbers that leave the building ───────────────────────────
+
+{
+  // Every address in the seed corpus. A regex that rejects a real client's
+  // address is a worse bug than the header injection it was tightened to stop,
+  // so the corpus is the floor: tighten the pattern all you like, this stays.
+  const seeded =
+    'a.vogt@icloud.com abby.ferreira@gmail.com accounting@northwindlog.com amara.n@outlook.com ava@whitfieldrowe.com bea.kowalczyk@outlook.com c.ravensworth@yahoo.com chen@whitfieldrowe.com d.oyelaran@yahoo.com d.volkov@yahoo.com dan@whitfieldrowe.com delphine.a@icloud.com documents@whitfieldrowe.com e.kwakye@gmail.com eleanor.whitfield@fastmail.com f.alrashid@icloud.com finance@cedarvine.co g.lindenberg@fastmail.com hanh.nguyen@fastmail.com hello@wrenwillow.studio ingrid.h@icloud.com isaiah.bergen@gmail.com jiwoo.park@proton.me joana.ribeiro@gmail.com kofi.mensah@gmail.com l.brassard@proton.me m.delacroix@gmail.com marcus@whitfieldrowe.com maricel.b@fastmail.com meg.lindqvist@fastmail.com meiling.hsu@gmail.com nadia.b@proton.me odalys.r@yahoo.com office@bramblelanedental.com priya@whitfieldrowe.com pv@venkatconsulting.com r.achebe@outlook.com rafa@montoyabuilds.com s.adeyemi@gmail.com saoirse.ob@fastmail.com tbergstrom@icloud.com tobias@ferncliffedesign.com trustee@harrowcreek.org vikram.c@outlook.com x.liang@outlook.com yuki.tanaka@proton.me'.split(
+      ' ',
+    );
+  for (const addr of seeded) {
+    assert.equal(isEmail(addr), true, `seeded address rejected: ${addr}`);
+  }
+
+  // Shapes outside the corpus that a real firm will meet.
+  for (const addr of [
+    'ava+2024@whitfieldrowe.com',
+    "o'brien@example.com",
+    'a@b.co',
+    'partner@example.technology',
+    'billing@ap.east.example.com',
+    'Eleanor.Whitfield@Example.COM',
+    'info@xn--80ak6aa92e.com',
+  ]) {
+    assert.equal(isEmail(addr), true, `legitimate address rejected: ${addr}`);
+  }
+
+  // `, ; < > "` are header separators. An address containing one is not just
+  // invalid, it is a second recipient waiting for an extension to render it.
+  for (const addr of [
+    'quoted;semi@example.com',
+    'a,b@example.com',
+    'a<b>@example.com',
+    'a"b@example.com',
+    'a b@example.com',
+    'a@example.com, evil@attacker.com',
+    'a@example.com\nBcc: evil@attacker.com',
+  ]) {
+    assert.equal(isEmail(addr), false, `header-injection address accepted: ${addr}`);
+  }
+
+  // Malformed shapes the old "anything without spaces" pattern let through.
+  for (const addr of [
+    '.leading@example.com',
+    'trailing.@example.com',
+    'a@b..com',
+    'a@-example.com',
+    'user@[192.168.0.1]',
+    '"john doe"@example.com',
+    'jos\u00e9@example.com',
+    'a@example.com.',
+    'a@under_score.com',
+    'a@123.45',
+    '@example.com',
+    'noatsign',
+    '',
+  ]) {
+    assert.equal(isEmail(addr), false, `malformed address accepted: ${addr}`);
+  }
+
+  // The normaliser and the predicate ship together so they cannot drift: what
+  // `normEmail` returns must be something `isEmail` agrees with.
+  assert.equal(normEmail('  Eleanor.Whitfield@Example.COM '), 'eleanor.whitfield@example.com');
+  assert.equal(normEmail('a,b@example.com'), null, 'normEmail rejects what isEmail rejects');
+  assert.equal(normEmail(''), null);
+  assert.equal(isEmail(normEmail('  AVA+2024@WhitfieldRowe.com ')!), true);
+
+  // Phones. `normPhone` is the only door that produces a sendable number, so
+  // everything it returns must satisfy `isE164` — that pairing is what lets the
+  // send path trust a single check instead of re-deriving the rule.
+  for (const raw of ['(415) 555-0142', '415-555-0142', '+1 415 555 0142', '14155550142']) {
+    const norm = normPhone(raw);
+    assert.equal(typeof norm, 'string', `normPhone should accept ${raw}`);
+    assert.equal(isE164(norm!), true, `normPhone produced a non-E.164 string from ${raw}`);
+  }
+  assert.equal(normPhone('(415) 555-0142'), '+14155550142');
+
+  // What a preparer can type straight into the field in the browser, which
+  // firestore.rules does not constrain. These must never reach the SMS queue.
+  for (const raw of ['call me maybe', '555-0142', '+1', '+0123456789', 'x', '']) {
+    assert.equal(isE164(raw), false, `unusable number accepted as E.164: ${raw}`);
+  }
+  assert.equal(isE164('+14155550142'), true);
 }
 
 console.log('shared: all checks passed');

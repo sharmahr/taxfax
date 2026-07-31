@@ -2,53 +2,21 @@
  * Hand-rolled validators. Deliberately not zod: the Functions bundle stays at
  * firebase-admin + firebase-functions + unpdf, and these few rules are all the
  * product needs. Every function here is pure — callers decide what to throw.
+ *
+ * Email and phone are *not* defined here any more. They were, and the browser
+ * had its own byte-identical copy, which is how a pattern gets tightened in one
+ * place and left alone in the other. They now live in `@taxfax/shared` so both
+ * ends validate a contact the same way, and are re-exported here so call sites
+ * do not have to care where they came from.
  */
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const E164_RE = /^\+[1-9]\d{7,14}$/;
-
-/** Lowercased, trimmed, RFC-ish valid address, or null. */
-export function normEmail(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const email = value.trim().toLowerCase();
-  if (email.length === 0 || email.length > 254) return null;
-  return EMAIL_RE.test(email) ? email : null;
-}
-
-export function isEmail(value: unknown): value is string {
-  return normEmail(value) !== null;
-}
-
-/**
- * Coerces a messy phone string to E.164, assuming US when no country code is
- * present (the overwhelming case for these firms). Returns null if it can't
- * produce something dialable rather than guessing.
- */
-export function normPhone(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const raw = value.trim();
-  if (raw.length === 0) return null;
-
-  const hadPlus = raw.startsWith('+');
-  const digits = raw.replace(/[^\d]/g, '');
-  if (digits.length === 0) return null;
-
-  let e164: string;
-  if (hadPlus) {
-    e164 = `+${digits}`;
-  } else if (digits.length === 10) {
-    e164 = `+1${digits}`;
-  } else if (digits.length === 11 && digits.startsWith('1')) {
-    e164 = `+${digits}`;
-  } else {
-    e164 = `+${digits}`;
-  }
-  return E164_RE.test(e164) ? e164 : null;
-}
-
-export function isE164(value: unknown): value is string {
-  return typeof value === 'string' && E164_RE.test(value);
-}
+export {
+  E164_RE,
+  EMAIL_RE,
+  isE164,
+  isEmail,
+  normEmail,
+  normPhone,
+} from '../../../packages/shared/src/contact.ts';
 
 /** Trimmed, single-spaced, within bounds, or null. */
 export function cleanName(value: unknown, min = 1, max = 200): string | null {

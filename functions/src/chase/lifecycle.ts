@@ -376,6 +376,9 @@ export const previewChase = onCall(CALL_OPTS, async (request) => {
       phones: recipients.phones,
       emailSuppressed: recipients.emailSuppressed,
       smsSuppressed: recipients.smsSuppressed,
+      // Numbers on file we would refuse to text, surfaced before the send so a
+      // preparer can fix one instead of finding out from the taxpayer.
+      smsUnreachable: recipients.smsUnreachable,
     },
     outstanding: copy.outstanding,
     outstandingCount: outstanding.requests.length,

@@ -26,13 +26,13 @@ import {
 import type {
   ChaseChannel,
   ChaseCopyInput,
+  ChaseMessage,
   ChaseProfile,
   ChaseSettings,
   ChaseStep,
   ChaseTone,
   Client,
   ClientChaseState,
-  Contact,
   DocRequest,
   Firm,
   FirmMember,
@@ -44,6 +44,7 @@ import type {
 
 import { FieldValue, Timestamp, db } from '../lib/admin.js';
 import { escapeHtml } from '../lib/mail.js';
+import { dispatchCount, resolveRecipients, type Recipients } from './recipients.js';
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
 
@@ -255,42 +256,10 @@ export function remainingDailyBudget(ctx: FirmContext): number {
 }
 
 // ── Recipients ───────────────────────────────────────────────────────────────
-
-export interface Recipients {
-  emails: string[];
-  phones: string[];
-  /** Channel was called for by the step, a contact exists on it, all opted out. */
-  emailSuppressed: boolean;
-  smsSuppressed: boolean;
-}
-
-function contactsOf(client: Client): Contact[] {
-  return [client.primaryContact, client.secondaryContact].filter((c): c is Contact => !!c);
-}
-
-export function resolveRecipients(client: Client, step: ChaseStep, settings: ChaseSettings): Recipients {
-  const contacts = contactsOf(client);
-  const wantEmail = step.channels.includes('email');
-  const wantSms = step.channels.includes('sms') && settings.smsEnabled;
-
-  const emails = wantEmail
-    ? [...new Set(contacts.filter((c) => c.email && !c.emailOptOut).map((c) => c.email.trim()))]
-    : [];
-  const phones = wantSms
-    ? [...new Set(contacts.filter((c) => c.phone && !c.smsOptOut).map((c) => c.phone!.trim()))]
-    : [];
-
-  return {
-    emails,
-    phones,
-    emailSuppressed: wantEmail && emails.length === 0 && contacts.some((c) => c.email),
-    smsSuppressed: wantSms && phones.length === 0 && contacts.some((c) => c.phone),
-  };
-}
-
-export function dispatchCount(rec: Recipients): number {
-  return (rec.emails.length > 0 ? 1 : 0) + rec.phones.length;
-}
+// Resolution lives in ./recipients.ts, which stays free of admin-SDK imports so
+// it can be unit-tested under plain node. Re-exported so the scheduler and
+// lifecycle keep importing the send pipeline from one module.
+export { dispatchCount, resolveRecipients, type Recipients };
 
 // ── Outstanding checklist items ──────────────────────────────────────────────
 
@@ -475,6 +444,12 @@ async function queueEmail(
   return ref.id;
 }
 
+/**
+ * `to` is always a number `resolveRecipients` has already checked against
+ * `E164_RE` — that is the single gate every send path passes through, and it
+ * reports what it refused instead of dropping it. A second check here would be
+ * a check with no reachable failure, which is how a guard becomes decoration.
+ */
 async function queueSms(to: string, body: string, docId: string, chase: ChaseRef): Promise<string> {
   const ref = db.collection(paths.sms()).doc(docId);
   await createOnce(ref, { to, body, chase, createdAt: FieldValue.serverTimestamp() });
@@ -503,8 +478,12 @@ export interface ChaseMessageRecord {
   subject?: string;
   body: string;
   outstanding: string[];
-  deliveryRef: string;
+  /** Absent when nothing was queued, i.e. on a skipped message. */
+  deliveryRef?: string;
   locale: LocaleId;
+  /** Defaults to 'queued'; 'skipped' means we refused to send this one. */
+  status?: ChaseMessage['status'];
+  skipReason?: string;
 }
 
 async function writeChaseMessage(rec: ChaseMessageRecord, docId: string): Promise<void> {
@@ -521,7 +500,8 @@ async function writeChaseMessage(rec: ChaseMessageRecord, docId: string): Promis
     body: rec.body,
     locale: rec.locale,
     outstanding: rec.outstanding,
-    status: 'queued',
+    status: rec.status ?? 'queued',
+    ...(rec.skipReason ? { skipReason: rec.skipReason } : {}),
     deliveryRef: rec.deliveryRef,
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -756,6 +736,29 @@ export async function sendStep(input: SendStepInput): Promise<SendStepResult> {
           locale,
         },
         `${stepIndex}-sms-${i}`,
+      );
+    }
+
+    // A number we refused is recorded, not discarded. The client's message
+    // history is where a preparer looks when a taxpayer says they never heard
+    // from us, so the refusal has to be there, naming the number as typed, or
+    // the firm has no way to know a text was never sent.
+    for (let i = 0; i < recipients.smsUnreachable.length; i++) {
+      await writeChaseMessage(
+        {
+          firmId: ctx.firmId,
+          clientId: client.id,
+          stepIndex,
+          channel: 'sms',
+          tone: rendered.tone,
+          to: recipients.smsUnreachable[i]!,
+          body: rendered.sms,
+          outstanding: codes,
+          locale,
+          status: 'skipped',
+          skipReason: 'That number is not a valid mobile number — fix it on the client to text them.',
+        },
+        `${stepIndex}-sms-skipped-${i}`,
       );
     }
   }
