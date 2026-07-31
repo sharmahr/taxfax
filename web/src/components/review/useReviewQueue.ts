@@ -45,6 +45,9 @@ export interface ReviewQueue {
   items: QueueItem[];
   needsReviewCount: number;
   spotCheckCount: number;
+  /** Documents this firm has ever accepted. Zero means a brand-new firm, which
+   *  is a different empty queue from one that has been worked down to zero. */
+  filedCount: number;
   selected: QueueItem | null;
   selectedId: string | null;
   select: (id: string) => void;
@@ -203,12 +206,23 @@ export function useReviewQueue(firmId: string | null): ReviewQueue {
   const selected = useMemo(() => items.find((i) => i.id === selectedId) ?? null, [items, selectedId]);
   const needsReviewCount = items.filter((i) => i.state === 'needs_review').length;
 
+  // The queue query only returns undecided documents, so an empty queue cannot
+  // say whether a decision was ever made. The roster can, and it is already
+  // subscribed above — the same move `/chase` makes to tell a finished cadence
+  // from one that never started. Only acceptances count: a rejection puts the
+  // request back to `pending`, which is not work finished.
+  const filedCount = useMemo(
+    () => clients.data.reduce((n, c) => n + (c.progress?.accepted ?? 0), 0),
+    [clients.data],
+  );
+
   return {
     loading: (docs.loading || clients.loading) && docs.data.length === 0,
     error: Boolean(docs.error),
     items,
     needsReviewCount,
     spotCheckCount: items.length - needsReviewCount,
+    filedCount,
     selected,
     selectedId,
     select: setSelectedId,

@@ -129,7 +129,7 @@ function ReviewScreen() {
 
   if (!firmId || queue.loading) return <ReviewSkeleton />;
   if (queue.error) return <ReviewError />;
-  if (queue.items.length === 0) return <ReviewEmpty />;
+  if (queue.items.length === 0) return <ReviewEmpty hasReviewed={queue.filedCount > 0} />;
 
   return (
     <div className="flex min-h-0 flex-col lg:h-full">
@@ -139,7 +139,10 @@ function ReviewScreen() {
         {selected ? `Reviewing ${selected.clientName}, ${docType(selected.classification?.docTypeId ?? 'other').code}` : ''}
       </span>
 
-      <div className="min-h-0 lg:grid lg:flex-1 lg:grid-cols-[minmax(280px,320px)_1fr_minmax(360px,400px)]">
+      {/* `minmax(0,1fr)` not `1fr`: a bare `1fr` floors at the preview's
+          min-content, which at 1024 pushed the whole grid past the viewport and
+          carried the decision column — Accept included — off-screen entirely. */}
+      <div className="min-h-0 lg:grid lg:flex-1 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(360px,400px)]">
         {/* Queue */}
         <div className={cn('flex min-h-0 flex-col border-line lg:border-r', pane === 'detail' && 'hidden lg:flex')}>
           <div className="min-h-0 flex-1 lg:overflow-y-auto">

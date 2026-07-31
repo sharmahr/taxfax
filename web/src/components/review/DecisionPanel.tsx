@@ -140,15 +140,21 @@ export function DecisionPanel({ item, mode, setMode, onAccept, onReject, onRecla
       {mode === 'reject' ? (
         <RejectForm client={item.clientName} onCancel={() => setMode('idle')} onSubmit={onReject} />
       ) : (
-        <div className="flex items-center gap-2 border-t border-line px-5 py-3">
+        // Three no-wrap buttons need ~420px; this column is never wider than
+        // 400. So the row wraps rather than clips, and `shrink-0` keeps each
+        // button at its content width — a squeezed button clips its own label
+        // just as badly as an overflowing one. The keycaps only appear at `xl`,
+        // where the header legend already teaches the same shortcuts; below
+        // that the three buttons fit on one line without them.
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
           <Button variant="danger" onClick={() => setMode('reject')} className="shrink-0">
-            <X /> Reject <Kbd className="ml-1 border-paper/25 bg-paper/15 text-paper">R</Kbd>
+            <X /> Reject <Kbd className="ml-1 hidden border-paper/25 bg-paper/15 text-paper xl:inline-flex">R</Kbd>
           </Button>
           <Button variant="secondary" onClick={() => setMode('reclassify')} className="shrink-0">
-            <RotateCcw /> Reclassify <Kbd className="ml-1">C</Kbd>
+            <RotateCcw /> Reclassify <Kbd className="ml-1 hidden xl:inline-flex">C</Kbd>
           </Button>
-          <Button variant="primary" onClick={onAccept} className="ml-auto flex-1 sm:flex-initial">
-            <Check /> Accept <Kbd className="ml-1 border-paper/25 bg-paper/15 text-paper">A</Kbd>
+          <Button variant="primary" onClick={onAccept} className="ml-auto flex-1">
+            <Check /> Accept <Kbd className="ml-1 hidden border-paper/25 bg-paper/15 text-paper xl:inline-flex">A</Kbd>
           </Button>
         </div>
       )}

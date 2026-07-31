@@ -102,8 +102,20 @@ function ChaseConsole() {
     <div className="flex min-h-0 flex-col lg:h-full">
       <ChaseSummary firmId={firmId} settings={settings} timezone={timezone} role={role} />
 
-      <div className="min-h-0 lg:grid lg:flex-1 lg:grid-cols-[minmax(300px,340px)_1fr]">
-        <div className={cn('flex min-h-0 flex-col border-line lg:border-r', pane === 'detail' && 'hidden lg:flex')}>
+      {/* The tab strip needs ~348px and this column gave it 315, so `Sent`
+          scrolled out of its own overflow box — present in the DOM, unreachable
+          by pointer. `flex-wrap` on the strip is the guarantee (counts reach
+          three digits in April, and no fixed width survives that); the wider
+          cap just keeps the common case on one line. `minmax(0,1fr)` stops the
+          detail pane's min-content from clawing that width back. */}
+      <div className="min-h-0 lg:grid lg:flex-1 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
+        <div
+          className={cn(
+            'flex min-h-0 flex-col border-line lg:border-r',
+            '[&_[role=tablist]]:flex-wrap [&_[role=tablist]]:gap-y-1',
+            pane === 'detail' && 'hidden lg:flex',
+          )}
+        >
           <ChaseList
             tab={tab}
             onTabChange={onTabChange}
