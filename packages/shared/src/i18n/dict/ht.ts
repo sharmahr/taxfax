@@ -100,6 +100,40 @@ export const ht: Dictionary = {
     'portal.help': 'Ou bloke? Reponn nenpòt imel nou voye epi yon moun ap reponn ou.',
     'portal.language': 'Lang',
     'portal.languageHint': 'Chanje lang nou itilize lè n ap ekri ou.',
+    'portal.loadFailed': 'Nou pa t ka chaje lis ou a',
+    'portal.loadFailedHint':
+      'Tcheke koneksyon ou epi chaje paj la ankò. Anyen nan sa ou voye pa pèdi.',
+    'portal.emptyTitle': 'Pa gen anyen ki nesèsè kounye a',
+    'portal.emptyHint': 'Lè {firmName} bezwen yon dokiman nan men w, l ap parèt isit la.',
+    'portal.somethingElse': 'Gen lòt bagay?',
+
+    'upload.gotItIssuer': 'Nou resevwa l — {code} soti nan {issuer}.',
+    'upload.gotItCode': 'Nou resevwa l — {code}.',
+    'upload.gotItSaved': 'Nou resevwa l — nou sere l nan dosye w.',
+    'upload.preparing': 'N ap prepare',
+    'upload.failed': 'Sa a pa t rive monte.',
+    'upload.unreadable': 'Nou pa t ka li sa a. Pran yon foto ki pi klè.',
+    'upload.undo': 'Defè',
+    'upload.undoLabel': 'Defè — retire {name}',
+    'upload.removing': 'N ap retire…',
+    'upload.removingLabel': 'N ap retire {name}',
+
+    'signin.working': 'N ap konekte w an sekirite…',
+    'signin.confirmTitle': 'Konfime imel ou',
+    'signin.confirmBody':
+      'Lyen sa a pa t pote imel ou, kidonk nou bezwen l yon sèl fwa pou nou konnen se ou menm. Mete adès kote kontab ou a te voye l la — se sèl bagay nou tcheke, pa gen modpas.',
+    'signin.emailLabel': 'Adès imel',
+    'signin.continue': 'Kontinye',
+    'signin.expiredTitle': 'Ann voye yon nouvo lyen ba ou',
+    'signin.expiredBody':
+      'Lyen sekirize sa a fini oswa yo deja itilize l. Nou ka voye yon lòt ba ou.',
+    'signin.expiredShort': 'Lyen sekirize sa a fini.',
+    'signin.yourEmail': 'Adès imel ou',
+    'signin.sendLink': 'Voye yon nouvo lyen ban mwen',
+    'signin.sentTitle': 'Tcheke imel ou',
+    'signin.sentBody':
+      'Nou voye yon lyen sekirize nan {email}. Louvri l sou aparèy sa a epi ou antre — pa gen modpas pou sonje.',
+
     'status.pending': 'Bezwen',
     'status.received': 'Resevwa',
     'status.accepted': 'Aksepte',

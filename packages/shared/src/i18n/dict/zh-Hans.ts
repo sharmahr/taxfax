@@ -96,6 +96,40 @@ export const zhHans: Dictionary = {
     'portal.help': '遇到问题？回复我们任何一封邮件，会有专人回复您。',
     'portal.language': '语言',
     'portal.languageHint': '更改我们与您联系时使用的语言。',
+    'portal.loadFailed': '无法载入您的清单',
+    'portal.loadFailedHint':
+      '请检查网络连接后重新载入页面。您已上传的资料不会丢失。',
+    'portal.emptyTitle': '目前没有需要提供的资料',
+    'portal.emptyHint': '{firmName} 需要您提供资料时，会显示在这里。',
+    'portal.somethingElse': '还有别的吗？',
+
+    'upload.gotItIssuer': '收到！{issuer} 的 {code}。',
+    'upload.gotItCode': '收到！{code}。',
+    'upload.gotItSaved': '收到！已存入您的档案。',
+    'upload.preparing': '准备中',
+    'upload.failed': '这份没有上传成功。',
+    'upload.unreadable': '这份看不清楚，请重拍一张更清晰的照片。',
+    'upload.undo': '撤销',
+    'upload.undoLabel': '撤销 — 移除 {name}',
+    'upload.removing': '正在移除…',
+    'upload.removingLabel': '正在移除 {name}',
+
+    'signin.working': '正在为您安全登录…',
+    'signin.confirmTitle': '确认您的邮箱',
+    'signin.confirmBody':
+      '这个链接没有带上您的邮箱地址，需要您填写一次以确认身份。请输入会计师发送此链接时使用的邮箱地址——我们只核对这一项，不需要密码。',
+    'signin.emailLabel': '邮箱地址',
+    'signin.continue': '继续',
+    'signin.expiredTitle': '给您换一个新链接',
+    'signin.expiredBody':
+      '这个安全链接已过期或已被使用过。我们可以给您发一个新的。',
+    'signin.expiredShort': '这个安全链接已过期。',
+    'signin.yourEmail': '您的邮箱地址',
+    'signin.sendLink': '给我发送新链接',
+    'signin.sentTitle': '请查收邮件',
+    'signin.sentBody':
+      '我们已将安全链接发送至 {email}。请在本设备上打开即可登录，无需记住任何密码。',
+
     'status.pending': '待提供',
     'status.received': '已收到',
     'status.accepted': '已通过',

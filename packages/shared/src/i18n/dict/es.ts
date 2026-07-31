@@ -102,6 +102,40 @@ export const es: Dictionary = {
       '¿Atascado? Responda a cualquiera de nuestros correos y le contestará una persona.',
     'portal.language': 'Idioma',
     'portal.languageHint': 'Cambie el idioma en el que le escribimos.',
+    'portal.loadFailed': 'No pudimos cargar su lista',
+    'portal.loadFailedHint':
+      'Revise su conexión y vuelva a cargar la página. No se ha perdido nada de lo que envió.',
+    'portal.emptyTitle': 'Nada pendiente por ahora',
+    'portal.emptyHint': 'Cuando {firmName} necesite un documento suyo, aparecerá aquí.',
+    'portal.somethingElse': '¿Algo más?',
+
+    'upload.gotItIssuer': '¡Listo! {code} de {issuer}.',
+    'upload.gotItCode': '¡Listo! {code}.',
+    'upload.gotItSaved': '¡Listo! Lo guardamos en su expediente.',
+    'upload.preparing': 'Preparando',
+    'upload.failed': 'Esa subida no se completó.',
+    'upload.unreadable': 'No pudimos leer ese. Pruebe con una foto más nítida.',
+    'upload.undo': 'Deshacer',
+    'upload.undoLabel': 'Deshacer — quitar {name}',
+    'upload.removing': 'Quitando…',
+    'upload.removingLabel': 'Quitando {name}',
+
+    'signin.working': 'Iniciando su sesión de forma segura…',
+    'signin.confirmTitle': 'Confirme su correo',
+    'signin.confirmBody':
+      'Este enlace no traía su correo, así que lo necesitamos una vez para confirmar que es usted. Escriba la dirección a la que su contador se lo envió: es lo único que verificamos, no hay contraseña.',
+    'signin.emailLabel': 'Correo electrónico',
+    'signin.continue': 'Continuar',
+    'signin.expiredTitle': 'Le enviamos un enlace nuevo',
+    'signin.expiredBody':
+      'Este enlace seguro ya venció o ya se usó. Podemos enviarle uno nuevo.',
+    'signin.expiredShort': 'Este enlace seguro ya venció.',
+    'signin.yourEmail': 'Su correo electrónico',
+    'signin.sendLink': 'Envíenme un enlace nuevo',
+    'signin.sentTitle': 'Revise su correo',
+    'signin.sentBody':
+      'Enviamos un enlace seguro a {email}. Ábralo en este mismo dispositivo y listo: no hay contraseña que recordar.',
+
     'status.pending': 'Falta',
     'status.received': 'Recibido',
     'status.accepted': 'Aceptado',

@@ -96,6 +96,40 @@ export const pt: Dictionary = {
     'portal.help': 'Travou em algo? Responda qualquer e-mail nosso e alguém entra em contato.',
     'portal.language': 'Idioma',
     'portal.languageHint': 'Escolha o idioma em que falamos com você.',
+    'portal.loadFailed': 'Não conseguimos carregar sua lista',
+    'portal.loadFailedHint':
+      'Verifique sua conexão e recarregue a página. Nada do que você enviou se perdeu.',
+    'portal.emptyTitle': 'Nada pendente por enquanto',
+    'portal.emptyHint': 'Quando {firmName} precisar de um documento seu, ele aparece aqui.',
+    'portal.somethingElse': 'Mais alguma coisa?',
+
+    'upload.gotItIssuer': 'Pronto! {code} de {issuer}.',
+    'upload.gotItCode': 'Pronto! {code}.',
+    'upload.gotItSaved': 'Pronto! Guardamos no seu arquivo.',
+    'upload.preparing': 'Preparando',
+    'upload.failed': 'Esse envio não foi concluído.',
+    'upload.unreadable': 'Não conseguimos ler esse. Tente uma foto mais nítida.',
+    'upload.undo': 'Desfazer',
+    'upload.undoLabel': 'Desfazer — remover {name}',
+    'upload.removing': 'Removendo…',
+    'upload.removingLabel': 'Removendo {name}',
+
+    'signin.working': 'Entrando com segurança…',
+    'signin.confirmTitle': 'Confirme seu e-mail',
+    'signin.confirmBody':
+      'Este link não veio com seu e-mail, então precisamos dele uma vez para confirmar que é você. Digite o endereço para onde seu contador enviou — é a única coisa que conferimos, sem senha.',
+    'signin.emailLabel': 'E-mail',
+    'signin.continue': 'Continuar',
+    'signin.expiredTitle': 'Vamos te mandar um link novo',
+    'signin.expiredBody':
+      'Este link seguro expirou ou já foi usado. Podemos enviar um novo.',
+    'signin.expiredShort': 'Este link seguro expirou.',
+    'signin.yourEmail': 'Seu e-mail',
+    'signin.sendLink': 'Me envie um link novo',
+    'signin.sentTitle': 'Confira seu e-mail',
+    'signin.sentBody':
+      'Enviamos um link seguro para {email}. Abra neste mesmo aparelho e pronto — sem senha para lembrar.',
+
     'status.pending': 'Necessário',
     'status.received': 'Recebido',
     'status.accepted': 'Aceito',

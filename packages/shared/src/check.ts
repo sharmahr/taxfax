@@ -20,6 +20,7 @@ import {
   localeRecord,
   resolveLepCode,
   smsCost,
+  t,
   type LocaleId,
   type StringKey,
 } from './i18n/index.ts';
@@ -499,6 +500,40 @@ Ava Okonkwo · Whitfield & Rowe`,
   const ar = renderEmail('urgent', { ...fixture, locale: 'ar' as LocaleId });
   assert.ok(ar.body.includes('\u2068https://taxfax.xyz/p/abc123\u2069'), 'the URL must be isolated');
   assert.ok(ar.body.includes('\u200f  •  '), 'RTL bullet lines must be pinned with an RLM');
+
+  // A translator may not drop or invent a slot. A translation missing
+  // `{firmName}` renders a sentence about nobody; an invented slot renders
+  // literal braces at a taxpayer, because `interpolate` leaves unknown names
+  // verbatim on purpose so this check can catch them.
+  const slotsOf = (s: string) =>
+    new Set(Array.from(s.matchAll(/\{(\w+)(?:#\w+)?\}/g), (m) => m[1]));
+  for (const key of keys) {
+    const want = slotsOf(DICTIONARIES.en.s[key]);
+    for (const id of LOCALE_IDS) {
+      assert.deepEqual(slotsOf(DICTIONARIES[id].s[key]), want, `${id}.s["${key}"] slot set must match English`);
+    }
+  }
+
+  // The recognition line. This is the first thing the product says *back* to a
+  // taxpayer — the moment they learn whether the photo of a crumpled W-2 worked
+  // — and the only place an IRS form code and a company's legal name are spliced
+  // into a translated sentence. Both must survive untranslated, and in Arabic
+  // both must be bidi-isolated or the sentence renders scrambled around them.
+  for (const id of LOCALE_IDS) {
+    const rtl = localeRecord(id).dir === 'rtl';
+    const line = t(id, 'upload.gotItIssuer', { code: 'W-2', issuer: 'Acme Corp' });
+    assert.ok(line.includes('W-2'), `${id}: the IRS form code must never be translated`);
+    assert.ok(line.includes('Acme Corp'), `${id}: the issuer's legal name must never be translated`);
+    assert.equal(
+      line.includes('\u2068W-2\u2069') && line.includes('\u2068Acme Corp\u2069'),
+      rtl,
+      `${id}: LTR runs must be isolated in an RTL locale and left untouched in every other`,
+    );
+    assert.ok(
+      !/[\u2066-\u2069]/.test(t(id, 'upload.gotItSaved')),
+      `${id}: a string with no interpolation must carry no bidi controls`,
+    );
+  }
 }
 
 console.log('shared: all checks passed');

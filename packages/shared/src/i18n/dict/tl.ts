@@ -101,6 +101,40 @@ export const tl: Dictionary = {
     'portal.help': 'May problema? I-reply lang ang alinman sa mga email namin at may sasagot sa inyo.',
     'portal.language': 'Wika',
     'portal.languageHint': 'Palitan ang wikang ginagamit namin kapag sumusulat sa inyo.',
+    'portal.loadFailed': 'Hindi ma-load ang listahan ninyo',
+    'portal.loadFailedHint':
+      'Pakisuri ang koneksyon at i-reload ang page. Buo pa rin ang lahat ng naipadala ninyo.',
+    'portal.emptyTitle': 'Wala pong kailangan sa ngayon',
+    'portal.emptyHint': 'Kapag may kailangang dokumento ang {firmName} mula sa inyo, lalabas ito rito.',
+    'portal.somethingElse': 'May iba pa po ba?',
+
+    'upload.gotItIssuer': 'Nakuha na — {code} mula sa {issuer}.',
+    'upload.gotItCode': 'Nakuha na — {code}.',
+    'upload.gotItSaved': 'Nakuha na — nai-save na po sa file ninyo.',
+    'upload.preparing': 'Inihahanda',
+    'upload.failed': 'Hindi natuloy ang pag-upload na iyon.',
+    'upload.unreadable': 'Hindi po namin mabasa iyon. Subukan ninyo ng mas malinaw na litrato.',
+    'upload.undo': 'I-undo',
+    'upload.undoLabel': 'I-undo — alisin ang {name}',
+    'upload.removing': 'Inaalis…',
+    'upload.removingLabel': 'Inaalis ang {name}',
+
+    'signin.working': 'Ligtas kayong pinapasok…',
+    'signin.confirmTitle': 'Kumpirmahin ang email ninyo',
+    'signin.confirmBody':
+      'Hindi kasama ang email ninyo sa link na ito, kaya kailangan namin ito nang minsan para makumpirmang kayo nga. Ilagay ang address na pinagpadalhan ng accountant ninyo — iyon lang po ang tinitingnan namin, walang password.',
+    'signin.emailLabel': 'Email address',
+    'signin.continue': 'Magpatuloy',
+    'signin.expiredTitle': 'Padadalhan namin kayo ng bagong link',
+    'signin.expiredBody':
+      'Expired na o nagamit na ang ligtas na link na ito. Makakapagpadala po kami ng bago.',
+    'signin.expiredShort': 'Expired na ang ligtas na link na ito.',
+    'signin.yourEmail': 'Email address ninyo',
+    'signin.sendLink': 'Padalhan ako ng bagong link',
+    'signin.sentTitle': 'Tingnan ang email ninyo',
+    'signin.sentBody':
+      'Nagpadala kami ng ligtas na link sa {email}. Buksan ninyo ito sa device na ito at pasok na kayo — walang password na kailangang tandaan.',
+
     'status.pending': 'Kailangan',
     'status.received': 'Natanggap',
     'status.accepted': 'Tanggap na',

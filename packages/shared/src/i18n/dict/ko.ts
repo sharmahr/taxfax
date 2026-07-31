@@ -95,6 +95,40 @@ export const ko: Dictionary = {
     'portal.help': '막히셨나요? 저희 메일 아무 데나 답장하시면 담당자가 답변드립니다.',
     'portal.language': '언어',
     'portal.languageHint': '연락드릴 때 사용하는 언어를 바꿉니다.',
+    'portal.loadFailed': '목록을 불러오지 못했습니다',
+    'portal.loadFailedHint':
+      '연결 상태를 확인하고 페이지를 새로 고쳐 주세요. 보내 주신 자료는 그대로 있습니다.',
+    'portal.emptyTitle': '지금은 필요한 서류가 없습니다',
+    'portal.emptyHint': '{firmName}에서 서류가 필요해지면 여기에 표시됩니다.',
+    'portal.somethingElse': '그 밖에 보내실 것이 있나요?',
+
+    'upload.gotItIssuer': '{issuer}의 {code}, 잘 받았습니다.',
+    'upload.gotItCode': '{code}, 잘 받았습니다.',
+    'upload.gotItSaved': '잘 받았습니다. 파일에 저장해 두었습니다.',
+    'upload.preparing': '준비 중',
+    'upload.failed': '이 파일은 업로드되지 않았습니다.',
+    'upload.unreadable': '이 파일은 알아보기 어렵습니다. 더 선명한 사진으로 다시 올려 주세요.',
+    'upload.undo': '되돌리기',
+    'upload.undoLabel': '되돌리기 — {name} 삭제',
+    'upload.removing': '삭제 중…',
+    'upload.removingLabel': '{name} 삭제 중',
+
+    'signin.working': '안전하게 로그인하는 중…',
+    'signin.confirmTitle': '이메일 주소를 확인해 주세요',
+    'signin.confirmBody':
+      '이 링크에 이메일 주소가 담겨 있지 않아, 본인 확인을 위해 한 번만 입력이 필요합니다. 회계사가 이 링크를 보낸 주소를 입력해 주세요. 확인하는 것은 그것뿐이며, 비밀번호는 없습니다.',
+    'signin.emailLabel': '이메일 주소',
+    'signin.continue': '계속',
+    'signin.expiredTitle': '새 링크를 보내 드리겠습니다',
+    'signin.expiredBody':
+      '이 보안 링크는 만료되었거나 이미 사용되었습니다. 새로 보내 드릴 수 있습니다.',
+    'signin.expiredShort': '이 보안 링크는 만료되었습니다.',
+    'signin.yourEmail': '이메일 주소',
+    'signin.sendLink': '새 링크 보내 주세요',
+    'signin.sentTitle': '이메일을 확인해 주세요',
+    'signin.sentBody':
+      '{email}(으)로 보안 링크를 보냈습니다. 이 기기에서 열면 바로 로그인되며, 기억할 비밀번호는 없습니다.',
+
     'status.pending': '필요',
     'status.received': '접수됨',
     'status.accepted': '확인 완료',

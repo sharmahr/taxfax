@@ -96,6 +96,40 @@ export const zhHant: Dictionary = {
     'portal.help': '遇到問題？回覆我們任何一封郵件，會有專人回覆您。',
     'portal.language': '語言',
     'portal.languageHint': '變更我們與您聯絡時使用的語言。',
+    'portal.loadFailed': '無法載入您的清單',
+    'portal.loadFailedHint':
+      '請檢查網路連線後重新載入頁面。您已上傳的資料不會遺失。',
+    'portal.emptyTitle': '目前沒有需要提供的資料',
+    'portal.emptyHint': '{firmName} 需要您提供資料時，會顯示在這裡。',
+    'portal.somethingElse': '還有別的嗎？',
+
+    'upload.gotItIssuer': '收到！{issuer} 的 {code}。',
+    'upload.gotItCode': '收到！{code}。',
+    'upload.gotItSaved': '收到！已存入您的檔案。',
+    'upload.preparing': '準備中',
+    'upload.failed': '這份沒有上傳成功。',
+    'upload.unreadable': '這份看不清楚，請重拍一張更清晰的照片。',
+    'upload.undo': '復原',
+    'upload.undoLabel': '復原 — 移除 {name}',
+    'upload.removing': '正在移除…',
+    'upload.removingLabel': '正在移除 {name}',
+
+    'signin.working': '正在為您安全登入…',
+    'signin.confirmTitle': '確認您的電子郵件',
+    'signin.confirmBody':
+      '這個連結沒有帶上您的電子郵件地址，需要您填寫一次以確認身分。請輸入會計師寄送此連結時使用的地址——我們只核對這一項，不需要密碼。',
+    'signin.emailLabel': '電子郵件地址',
+    'signin.continue': '繼續',
+    'signin.expiredTitle': '幫您換一個新連結',
+    'signin.expiredBody':
+      '這個安全連結已過期或已被使用過。我們可以寄一個新的給您。',
+    'signin.expiredShort': '這個安全連結已過期。',
+    'signin.yourEmail': '您的電子郵件地址',
+    'signin.sendLink': '寄新連結給我',
+    'signin.sentTitle': '請查看您的電子郵件',
+    'signin.sentBody':
+      '我們已將安全連結寄到 {email}。請在這台裝置上開啟即可登入，不必記任何密碼。',
+
     'status.pending': '待提供',
     'status.received': '已收到',
     'status.accepted': '已通過',

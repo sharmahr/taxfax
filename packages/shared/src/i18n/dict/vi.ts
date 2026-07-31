@@ -98,6 +98,40 @@ export const vi: Dictionary = {
     'portal.help': 'Gặp khó khăn? Trả lời bất kỳ email nào của chúng tôi, sẽ có người trả lời.',
     'portal.language': 'Ngôn ngữ',
     'portal.languageHint': 'Đổi ngôn ngữ chúng tôi dùng khi liên lạc với quý vị.',
+    'portal.loadFailed': 'Không tải được danh sách của quý vị',
+    'portal.loadFailedHint':
+      'Vui lòng kiểm tra kết nối và tải lại trang. Những gì quý vị đã gửi vẫn còn nguyên.',
+    'portal.emptyTitle': 'Hiện chưa cần giấy tờ nào',
+    'portal.emptyHint': 'Khi {firmName} cần giấy tờ từ quý vị, nó sẽ hiện ở đây.',
+    'portal.somethingElse': 'Còn gì nữa không?',
+
+    'upload.gotItIssuer': 'Đã nhận — {code} từ {issuer}.',
+    'upload.gotItCode': 'Đã nhận — {code}.',
+    'upload.gotItSaved': 'Đã nhận — chúng tôi đã lưu vào hồ sơ của quý vị.',
+    'upload.preparing': 'Đang chuẩn bị',
+    'upload.failed': 'Tải lên không thành công.',
+    'upload.unreadable': 'Chúng tôi không đọc được tấm này. Quý vị chụp lại rõ hơn giúp nhé.',
+    'upload.undo': 'Hoàn tác',
+    'upload.undoLabel': 'Hoàn tác — xóa {name}',
+    'upload.removing': 'Đang xóa…',
+    'upload.removingLabel': 'Đang xóa {name}',
+
+    'signin.working': 'Đang đăng nhập an toàn cho quý vị…',
+    'signin.confirmTitle': 'Xác nhận email của quý vị',
+    'signin.confirmBody':
+      'Đường liên kết này không kèm theo email của quý vị, nên chúng tôi cần quý vị nhập một lần để xác nhận đúng người. Xin nhập địa chỉ mà kế toán viên đã gửi tới — chúng tôi chỉ kiểm tra chừng đó, không cần mật khẩu.',
+    'signin.emailLabel': 'Địa chỉ email',
+    'signin.continue': 'Tiếp tục',
+    'signin.expiredTitle': 'Chúng tôi gửi quý vị đường liên kết mới',
+    'signin.expiredBody':
+      'Đường liên kết an toàn này đã hết hạn hoặc đã được dùng rồi. Chúng tôi có thể gửi quý vị một cái mới.',
+    'signin.expiredShort': 'Đường liên kết an toàn này đã hết hạn.',
+    'signin.yourEmail': 'Địa chỉ email của quý vị',
+    'signin.sendLink': 'Gửi cho tôi đường liên kết mới',
+    'signin.sentTitle': 'Xin kiểm tra email',
+    'signin.sentBody':
+      'Chúng tôi đã gửi một đường liên kết an toàn tới {email}. Quý vị mở nó ngay trên máy này là vào được, không cần nhớ mật khẩu.',
+
     'status.pending': 'Cần nộp',
     'status.received': 'Đã nhận',
     'status.accepted': 'Đã duyệt',

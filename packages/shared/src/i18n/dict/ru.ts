@@ -106,6 +106,40 @@ export const ru: Dictionary = {
     'portal.help': 'Что-то не получается? Ответьте на любое наше письмо — вам ответит человек.',
     'portal.language': 'Язык',
     'portal.languageHint': 'Выберите язык, на котором мы будем вам писать.',
+    'portal.loadFailed': 'Не удалось загрузить ваш список',
+    'portal.loadFailedHint':
+      'Проверьте соединение и обновите страницу. Всё, что вы прислали, на месте.',
+    'portal.emptyTitle': 'Сейчас ничего не нужно',
+    'portal.emptyHint': 'Как только {firmName} понадобится документ от вас, он появится здесь.',
+    'portal.somethingElse': 'Что-то ещё?',
+
+    'upload.gotItIssuer': 'Получили — {code} от {issuer}.',
+    'upload.gotItCode': 'Получили — {code}.',
+    'upload.gotItSaved': 'Получили — документ сохранён в вашем деле.',
+    'upload.preparing': 'Подготовка',
+    'upload.failed': 'Этот файл не загрузился.',
+    'upload.unreadable': 'Не удалось разобрать этот снимок. Сфотографируйте, пожалуйста, почётче.',
+    'upload.undo': 'Отменить',
+    'upload.undoLabel': 'Отменить — удалить {name}',
+    'upload.removing': 'Удаляем…',
+    'upload.removingLabel': 'Удаляем {name}',
+
+    'signin.working': 'Безопасный вход…',
+    'signin.confirmTitle': 'Подтвердите вашу почту',
+    'signin.confirmBody':
+      'В этой ссылке не оказалось вашего адреса, поэтому его нужно ввести один раз — чтобы убедиться, что это вы. Укажите адрес, на который бухгалтер прислал ссылку: это единственное, что мы проверяем, пароль не нужен.',
+    'signin.emailLabel': 'Адрес электронной почты',
+    'signin.continue': 'Продолжить',
+    'signin.expiredTitle': 'Пришлём вам новую ссылку',
+    'signin.expiredBody':
+      'Эта защищённая ссылка истекла или уже была использована. Мы можем прислать новую.',
+    'signin.expiredShort': 'Эта защищённая ссылка истекла.',
+    'signin.yourEmail': 'Ваш адрес электронной почты',
+    'signin.sendLink': 'Пришлите мне новую ссылку',
+    'signin.sentTitle': 'Проверьте почту',
+    'signin.sentBody':
+      'Мы отправили защищённую ссылку на {email}. Откройте её на этом же устройстве — и вы внутри, никаких паролей.',
+
     'status.pending': 'Нужен',
     'status.received': 'Получен',
     'status.accepted': 'Принят',

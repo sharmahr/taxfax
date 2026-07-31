@@ -115,6 +115,40 @@ export const ar: Dictionary = {
     'portal.help': 'واجهتك مشكلة؟ رد على أي رسالة منا وسيجيبك شخص حقيقي.',
     'portal.language': 'اللغة',
     'portal.languageHint': 'غيّر اللغة التي نراسلك بها.',
+    'portal.loadFailed': 'تعذّر تحميل قائمتك',
+    'portal.loadFailedHint':
+      'تحقّق من اتصالك وأعد تحميل الصفحة. كل ما أرسلته محفوظ.',
+    'portal.emptyTitle': 'لا شيء مطلوب الآن',
+    'portal.emptyHint': 'عندما تحتاج {firmName} مستندًا منك، سيظهر هنا.',
+    'portal.somethingElse': 'هل من شيء آخر؟',
+
+    'upload.gotItIssuer': 'وصلنا — {code} من {issuer}.',
+    'upload.gotItCode': 'وصلنا — {code}.',
+    'upload.gotItSaved': 'وصلنا — حفظناه في ملفك.',
+    'upload.preparing': 'جارٍ التحضير',
+    'upload.failed': 'لم يكتمل رفع هذا الملف.',
+    'upload.unreadable': 'تعذّرت قراءة هذه الصورة. جرّب صورة أوضح.',
+    'upload.undo': 'تراجع',
+    'upload.undoLabel': 'تراجع — إزالة {name}',
+    'upload.removing': 'جارٍ الإزالة…',
+    'upload.removingLabel': 'جارٍ إزالة {name}',
+
+    'signin.working': 'جارٍ تسجيل دخولك بأمان…',
+    'signin.confirmTitle': 'أكّد بريدك الإلكتروني',
+    'signin.confirmBody':
+      'هذا الرابط لم يحمل بريدك، لذا نحتاجه مرة واحدة للتأكد من أنك أنت. اكتب العنوان الذي أرسل إليه محاسبك الرابط — هذا كل ما نتحقق منه، ولا حاجة لكلمة مرور.',
+    'signin.emailLabel': 'البريد الإلكتروني',
+    'signin.continue': 'متابعة',
+    'signin.expiredTitle': 'سنرسل لك رابطًا جديدًا',
+    'signin.expiredBody':
+      'انتهت صلاحية هذا الرابط الآمن أو أنه استُخدم من قبل. يمكننا إرسال رابط جديد.',
+    'signin.expiredShort': 'انتهت صلاحية هذا الرابط الآمن.',
+    'signin.yourEmail': 'بريدك الإلكتروني',
+    'signin.sendLink': 'أرسل لي رابطًا جديدًا',
+    'signin.sentTitle': 'تحقّق من بريدك',
+    'signin.sentBody':
+      'أرسلنا رابطًا آمنًا إلى {email}. افتحه على هذا الجهاز وستدخل — بلا كلمة مرور تحفظها.',
+
     'status.pending': 'مطلوب',
     'status.received': 'وصل',
     'status.accepted': 'مقبول',

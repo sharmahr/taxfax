@@ -430,3 +430,66 @@ describe('translation review status', () => {
     }
   });
 });
+
+// ── The recognition line ─────────────────────────────────────────────────────
+
+/**
+ * `Got it — W-2 from Acme Corp.` is the single most important sentence in the
+ * product for a taxpayer who does not read English: it is the moment they find
+ * out whether the photo they just took actually worked. Three forms, because we
+ * know three different amounts about the file.
+ */
+describe('post-upload recognition line', () => {
+  it('never translates the IRS form code or the issuer name', () => {
+    for (const id of LOCALE_IDS) {
+      const line = t(id, 'upload.gotItIssuer', { code: '1099-DIV', issuer: 'Vanguard' });
+      assert.ok(line.includes('1099-DIV'), `${id} lost the form code`);
+      assert.ok(line.includes('Vanguard'), `${id} lost the issuer`);
+      assert.ok(!/\{\w+\}/.test(line), `${id} left a slot unrendered: ${line}`);
+    }
+  });
+
+  it('isolates both Latin runs in Arabic and neither anywhere else', () => {
+    const ar = t('ar', 'upload.gotItIssuer', { code: 'W-2', issuer: 'Acme Corp' });
+    assert.ok(ar.includes(FSI + 'W-2' + PDI), 'the form code must be isolated');
+    assert.ok(ar.includes(FSI + 'Acme Corp' + PDI), 'the issuer must be isolated');
+    // Strip the controls and the Arabic sentence is intact around the Latin.
+    assert.equal(stripBidi(ar), 'وصلنا — W-2 من Acme Corp.');
+
+    for (const id of LOCALE_IDS) {
+      if (localeRecord(id).dir === 'rtl') continue;
+      const line = t(id, 'upload.gotItIssuer', { code: 'W-2', issuer: 'Acme Corp' });
+      assert.equal(stripBidi(line), line, `${id} is LTR and needs no bidi controls`);
+    }
+  });
+
+  it('keeps a filename readable inside an RTL aria-label', () => {
+    const label = t('ar', 'upload.undoLabel', { name: 'W2_Acme_2024.pdf' });
+    assert.ok(label.includes(FSI + 'W2_Acme_2024.pdf' + PDI), 'the filename must not be reordered');
+  });
+
+  it('has all three forms in every locale, and the codeless one takes no slots', () => {
+    for (const id of LOCALE_IDS) {
+      for (const key of ['upload.gotItIssuer', 'upload.gotItCode', 'upload.gotItSaved'] as const) {
+        assert.ok(DICTIONARIES[id].s[key]?.length, `${id} is missing ${key}`);
+      }
+      assert.ok(
+        !/\{\w+\}/.test(DICTIONARIES[id].s['upload.gotItSaved']),
+        `${id}: the no-classification form has nothing to interpolate`,
+      );
+      assert.ok(
+        DICTIONARIES[id].s['upload.gotItCode'].includes('{code}'),
+        `${id}: the code-only form must still carry the code`,
+      );
+    }
+  });
+
+  it('does not let a translation drop or invent an interpolation slot', () => {
+    const slots = (s: string) => new Set(Array.from(s.matchAll(/\{(\w+)(?:#\w+)?\}/g), (m) => m[1]));
+    for (const key of Object.keys(DICTIONARIES.en.s) as (keyof typeof DICTIONARIES.en.s)[]) {
+      for (const id of LOCALE_IDS) {
+        assert.deepEqual(slots(DICTIONARIES[id].s[key]), slots(DICTIONARIES.en.s[key]), `${id}.${key}`);
+      }
+    }
+  });
+});

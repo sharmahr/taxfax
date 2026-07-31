@@ -100,6 +100,40 @@ export const en: Dictionary = {
     'portal.help': 'Stuck? Reply to any of our emails and a person will answer.',
     'portal.language': 'Language',
     'portal.languageHint': 'Change the language we write to you in.',
+    'portal.loadFailed': 'We couldn’t load your list',
+    'portal.loadFailedHint':
+      'Check your connection and reload the page. Nothing you’ve sent is lost.',
+    'portal.emptyTitle': 'Nothing needed right now',
+    'portal.emptyHint': 'When {firmName} needs a document from you, it will show up here.',
+    'portal.somethingElse': 'Something else?',
+
+    'upload.gotItIssuer': 'Got it — {code} from {issuer}.',
+    'upload.gotItCode': 'Got it — {code}.',
+    'upload.gotItSaved': 'Got it — saved to your file.',
+    'upload.preparing': 'Preparing',
+    'upload.failed': 'That upload didn’t go through.',
+    'upload.unreadable': 'We couldn’t read that one. Try a clearer photo.',
+    'upload.undo': 'Undo',
+    'upload.undoLabel': 'Undo — remove {name}',
+    'upload.removing': 'Removing…',
+    'upload.removingLabel': 'Removing {name}',
+
+    'signin.working': 'Signing you in securely…',
+    'signin.confirmTitle': 'Confirm your email',
+    'signin.confirmBody':
+      'This link didn’t carry your email, so we need it once to confirm it’s you. Enter the address your accountant sent this to — that’s the only thing we check, no password.',
+    'signin.emailLabel': 'Email address',
+    'signin.continue': 'Continue',
+    'signin.expiredTitle': 'Let’s get you a fresh link',
+    'signin.expiredBody':
+      'This secure link has expired or was already used. We can send you a new one.',
+    'signin.expiredShort': 'This secure link has expired.',
+    'signin.yourEmail': 'Your email address',
+    'signin.sendLink': 'Email me a new link',
+    'signin.sentTitle': 'Check your email',
+    'signin.sentBody':
+      'We sent a secure link to {email}. Open it on this device and you’re in — no password to remember.',
+
     'status.pending': 'Needed',
     'status.received': 'Received',
     'status.accepted': 'Accepted',
