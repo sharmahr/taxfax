@@ -8,7 +8,10 @@ import { cn } from '@/lib/cn';
 export const fieldStyles = cn(
   'w-full rounded-md border border-line-strong bg-surface text-ink',
   'placeholder:text-ink-faint',
-  'transition-[color,box-shadow,border-color] duration-100 ease-out-quint',
+  // Border and text ease; the ring does not. A focus indicator that fades in is
+  // a focus indicator that is briefly wrong, and this app is worked by keyboard
+  // all day — the ring has to be true on the frame the focus lands.
+  'transition-[color,border-color]',
   'focus-visible:outline-hidden focus-visible:border-focus focus-visible:ring-[3px] focus-visible:ring-focus/25',
   'disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:opacity-60',
   'aria-[invalid=true]:border-status-danger aria-[invalid=true]:ring-status-danger/25',

@@ -3,6 +3,12 @@ import { cn } from '@/lib/cn';
 
 interface EmptyStateProps {
   icon?: ComponentType<{ className?: string }>;
+  /**
+   * A brand vignette, for the two states that carry meaning: nothing filed yet,
+   * or the work is finished. Takes the icon's place. Passed as a node rather
+   * than a component so this primitive never imports the brand layer.
+   */
+  vignette?: ReactNode;
   title: string;
   description?: ReactNode;
   action?: ReactNode;
@@ -10,7 +16,14 @@ interface EmptyStateProps {
 }
 
 /** Reads like a status report, never a joke. The caller supplies the plain-spoken copy. */
-export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
+export function EmptyState({
+  icon: Icon,
+  vignette,
+  title,
+  description,
+  action,
+  className,
+}: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -18,7 +31,8 @@ export function EmptyState({ icon: Icon, title, description, action, className }
         className,
       )}
     >
-      {Icon ? (
+      {vignette ? <div className="mb-6">{vignette}</div> : null}
+      {!vignette && Icon ? (
         <div className="mb-4 inline-flex size-11 items-center justify-center rounded-lg bg-surface-sunken text-ink-faint">
           <Icon className="size-5" />
         </div>

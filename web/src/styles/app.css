@@ -29,9 +29,12 @@
   --color-surface-sunken: oklch(0.965 0.005 85);
   --color-surface-raised: oklch(1 0 0);
 
+  /* Three ink tiers, each ≥4.5:1 on paper: 17.9 / 7.0 / 4.6. `ink-faint` carries
+     ~200 real text nodes (counts, timestamps, units), so it is a text colour and
+     not decoration — do not lighten it back for subtlety. */
   --color-ink: oklch(0.17 0.005 285);
-  --color-ink-muted: oklch(0.505 0.008 285);
-  --color-ink-faint: oklch(0.66 0.007 285);
+  --color-ink-muted: oklch(0.45 0.008 285);
+  --color-ink-faint: oklch(0.548 0.007 285);
 
   --color-line: oklch(0.905 0.005 85);
   --color-line-strong: oklch(0.845 0.006 85);
@@ -81,6 +84,14 @@
   /* ── Motion — functional is fast and stiff; decorative is slow and loose ─ */
   --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* Tailwind's own defaults are 150ms and its stock `ease`. Roughly sixty call
+     sites write a bare `transition-colors` and inherit them, while the rest
+     spell out `duration-100 ease-out-quint` — two curves doing one job. Moving
+     the default here makes every hover in the product the same 100ms without
+     annotating sixty class lists. */
+  --default-transition-duration: 100ms;
+  --default-transition-timing-function: var(--ease-out-quint);
 }
 
 .dark {
@@ -89,9 +100,10 @@
   --color-surface-sunken: oklch(0.142 0.005 285);
   --color-surface-raised: oklch(0.225 0.005 285);
 
+  /* Mirrors the light ramp: 17.0 / 6.8 / 4.6 on dark paper. */
   --color-ink: oklch(0.955 0.003 85);
   --color-ink-muted: oklch(0.685 0.007 285);
-  --color-ink-faint: oklch(0.535 0.008 285);
+  --color-ink-faint: oklch(0.585 0.008 285);
 
   --color-line: oklch(0.285 0.006 285);
   --color-line-strong: oklch(0.365 0.007 285);
@@ -211,14 +223,15 @@
   line-height: 1.02;
 }
 
-/* Column headers, metadata labels. */
+/* Column headers, metadata labels. Muted, not faint: 10px uppercase at 0.06em
+   tracking is the hardest text in the system to read. */
 @utility label-eyebrow {
   font-size: var(--text-2xs);
   line-height: 1rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-ink-faint);
+  color: var(--color-ink-muted);
 }
 
 /* The hairline rule that separates rows without drawing a box. */
@@ -234,9 +247,18 @@
   font-feature-settings: 'ss01', 'zero';
 }
 
-/* Skeletons: a calm opacity pulse, never a shimmer sweep. */
+/* Skeletons: a calm opacity pulse, never a shimmer sweep.
+
+   Held back for 140ms. Most reads in this app return from the Firestore cache
+   in well under that, and a skeleton that appears and leaves inside 80ms reads
+   as a glitch, not as loading. The hold is a second animation on `visibility`,
+   so it costs no layout — the boxes are laid out from the first frame and
+   revealing them shifts nothing — and it degrades the safe way: with reduced
+   motion, or with animations off entirely, the skeleton simply shows at once. */
 @utility pulse-calm {
-  animation: pulse-calm 1.6s var(--ease-in-out-quart) infinite;
+  animation:
+    pulse-calm 1.6s var(--ease-in-out-quart) infinite,
+    skeleton-hold 140ms linear;
 }
 
 @keyframes pulse-calm {
@@ -249,6 +271,16 @@
   }
 }
 
+@keyframes skeleton-hold {
+  0%,
+  99% {
+    visibility: hidden;
+  }
+  100% {
+    visibility: visible;
+  }
+}
+
 /* Only ever used on the very first paint of a route. */
 @utility rise-in {
   animation: rise-in 0.32s var(--ease-out-quint) both;
@@ -258,6 +290,42 @@
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* One line, in place, now saying something more specific than it did a moment
+   ago. Shorter and smaller than `rise-in`, which is a whole view arriving.
+   Replay it by keying the element on its own content. */
+@utility swap-in {
+  animation: swap-in 0.18s var(--ease-out-quint) both;
+}
+
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The receipt stamp. The one mark in the product that lands rather than fades,
+   reserved for the moment a taxpayer's document is confirmed saved. It starts
+   at 0.9, not 0 — nothing real appears out of nothing. */
+@utility stamp-in {
+  animation: stamp-in 0.2s var(--ease-out-quint) both;
+}
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
   }
   to {
     opacity: 1;

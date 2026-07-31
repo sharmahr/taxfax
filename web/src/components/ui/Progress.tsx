@@ -15,15 +15,27 @@ export function Progress({
   return (
     <ProgressPrimitive.Root
       value={v}
-      className={cn('relative h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken', className)}
+      className={cn(
+        'relative h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken',
+        // Which way the bar fills. `width` used to get this free from the inline
+        // axis; a transform is physical, so the direction has to be said out loud
+        // or the portal fills backwards in Arabic.
+        '[--fill-sign:-1] rtl:[--fill-sign:1]',
+        className,
+      )}
       {...props}
     >
+      {/* Full width, slid out of the track by the remainder. A width transition
+          would relayout on every progress event from a live upload; a translate
+          is composited. The track clips the overhanging cap, so both ends stay
+          round. Linear, and short: a taxpayer watching this needs it to read as
+          now, not as where the upload was half a second ago. */}
       <ProgressPrimitive.Indicator
         className={cn(
-          'h-full rounded-full bg-ink transition-[width] duration-500 ease-out-quint',
+          'h-full w-full rounded-full bg-ink transition-transform duration-200 ease-linear',
           indicatorClassName,
         )}
-        style={{ width: `${v}%` }}
+        style={{ transform: `translateX(calc(var(--fill-sign) * ${100 - v}%))` }}
       />
     </ProgressPrimitive.Root>
   );
