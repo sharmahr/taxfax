@@ -224,7 +224,12 @@
     ::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
+      /* Neutralising the duration alone leaves a staggered list still arriving
+         one row at a time over a second — no movement, but no less of a
+         performance. A delay is motion's timing; it has to go too. */
+      animation-delay: 0ms !important;
       transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
       scroll-behavior: auto !important;
     }
   }

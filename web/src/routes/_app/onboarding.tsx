@@ -69,6 +69,12 @@ const TIMEZONES = [
 
 const TOTAL = ONBOARDING_STEPS.length;
 
+/** The checklist assembles itself at one row every `STEP_MS`, after a beat to
+ *  let the eye land. Each row is the `rise-in` primitive from `app.css`; all
+ *  this adds is when it starts. Thirteen rows settle inside a second. */
+const LEAD_MS = 120;
+const STEP_MS = 45;
+
 function OnboardingPage() {
   usePageTitle('Set up your firm');
   const { activeFirm, user } = useAuth();
@@ -511,13 +517,21 @@ function PriorYearStep({
           </div>
         </div>
 
+        {/* The step is called "See a checklist build itself", and until now it
+            didn't — a finished list was simply present on arrival. The order
+            these land in is the order the rules fired in, so watching it
+            assemble is watching TaxFax read a return. Leaving the step and
+            coming back replays it, because the wizard remounts each step; there
+            is no replay button because there is already one, and it is the step
+            nav on the left. */}
         <ul className="mt-4 space-y-1.5">
-          {hits.map((hit) => {
+          {hits.map((hit, i) => {
             const def = docType(hit.docTypeId);
             return (
               <li
                 key={hit.docTypeId}
-                className="flex items-start gap-3 rounded-lg border border-line bg-surface px-3 py-2.5"
+                style={{ animationDelay: `${LEAD_MS + i * STEP_MS}ms` }}
+                className="rise-in flex items-start gap-3 rounded-lg border border-line bg-surface px-3 py-2.5"
               >
                 <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-status-success-wash text-status-success">
                   <Check className="size-3" />
@@ -543,7 +557,11 @@ function PriorYearStep({
           })}
         </ul>
 
-        <p className="mt-3 text-2xs text-ink-faint">
+        {/* The count is the punchline, so it waits for the evidence. */}
+        <p
+          style={{ animationDelay: `${LEAD_MS + hits.length * STEP_MS}ms` }}
+          className="swap-in mt-3 text-2xs text-ink-faint"
+        >
           <span className="font-medium text-ink-muted">{hits.length} documents</span> to collect,
           built from one PDF — no checklist typed by hand.
         </p>
