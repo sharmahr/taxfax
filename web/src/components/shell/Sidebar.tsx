@@ -50,11 +50,14 @@ export function SidebarContent({
   );
 }
 
-/** The desktop rail. Width animates between expanded and icon-only. */
+/** The desktop rail. Collapse is instant: it is the one change in the product
+ *  that cannot be missed, so motion adds no legibility, and a width transition
+ *  would relayout the whole main column — including a virtualized table — on
+ *  every frame of it. When someone asks for more room, give it to them now. */
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
   return (
     <aside
-      className="hidden h-full shrink-0 border-r border-line bg-paper transition-[width] duration-200 ease-out-quint md:block"
+      className="hidden h-full shrink-0 border-r border-line bg-paper md:block"
       style={{ width: collapsed ? 60 : 240 }}
     >
       <SidebarContent collapsed={collapsed} />

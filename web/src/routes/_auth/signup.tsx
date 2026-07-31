@@ -52,7 +52,9 @@ function SignupPage() {
       });
     }
 
-    await navigate({ to: '/' });
+    // Straight into onboarding: a brand-new firm has no clients, so the dashboard
+    // would only show an empty state. Onboarding is the first-run surface.
+    await navigate({ to: '/onboarding' });
   }
 
   return (

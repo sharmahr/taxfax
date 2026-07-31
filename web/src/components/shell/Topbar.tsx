@@ -17,8 +17,8 @@ interface TopbarProps {
 export function Topbar({ onOpenMobileNav, onToggleSidebar, onOpenPalette }: TopbarProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const custom = usePageTitleNode();
-  const derived = NAV_ITEMS.find((i) =>
-    i.to === '/' ? pathname === '/' : pathname === i.to || pathname.startsWith(`${i.to}/`),
+  const derived = NAV_ITEMS.find(
+    (i) => pathname === i.to || pathname.startsWith(`${i.to}/`),
   )?.label;
 
   return (

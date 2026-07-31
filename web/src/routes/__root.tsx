@@ -1,9 +1,17 @@
-import { createRootRoute, Link, Outlet, useRouter } from '@tanstack/react-router';
+import { lazy, Suspense } from 'react';
+import { createRootRoute, Link, Outlet, useRouter, useRouterState } from '@tanstack/react-router';
 import { FileWarning, RotateCw } from 'lucide-react';
-import { AuthProvider } from '@/lib/auth';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { CardVignette } from '@/components/brand';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { Toaster } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
+
+/**
+ * Sonner is ~32 kB and the marketing page never raises a toast, so the toaster
+ * is both split out and left unmounted there. It is a sibling of the outlet,
+ * so gating it changes nothing about how routes mount.
+ */
+const Toaster = lazy(() => import('@/components/ui/Toast').then((m) => ({ default: m.Toaster })));
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -12,11 +20,16 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
+  const onMarketing = useRouterState({ select: (s) => s.location.pathname === '/' });
   return (
     <AuthProvider>
       <TooltipProvider delayDuration={250} skipDelayDuration={400}>
         <Outlet />
-        <Toaster />
+        {onMarketing ? null : (
+          <Suspense fallback={null}>
+            <Toaster />
+          </Suspense>
+        )}
       </TooltipProvider>
     </AuthProvider>
   );
@@ -32,9 +45,15 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 function NotFound() {
+  // A signed-in preparer who mistypes a URL should land back at work, not on a
+  // marketing page inviting them to start a trial they already started.
+  const { user } = useAuth();
   return (
     <Centered>
-      <p className="label-eyebrow text-ink-faint">Error 404</p>
+      <div className="flex justify-center">
+        <CardVignette className="w-40 text-ink-faint" />
+      </div>
+      <p className="label-eyebrow mt-8 text-ink-faint">Error 404</p>
       <h1 className="display mt-3 text-6xl text-ink">Not on file.</h1>
       <p className="mt-4 text-pretty text-sm text-ink-muted">
         We looked through the drawers and couldn&rsquo;t find that page. It may have been moved,
@@ -42,7 +61,7 @@ function NotFound() {
       </p>
       <div className="mt-7 flex justify-center">
         <Button asChild variant="primary">
-          <Link to="/">Back to dashboard</Link>
+          {user ? <Link to="/dashboard">Back to dashboard</Link> : <Link to="/">Back to home</Link>}
         </Button>
       </div>
     </Centered>

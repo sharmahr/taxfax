@@ -5,7 +5,7 @@ import { authReady, getAuthSnapshot } from '@/lib/auth';
 export const Route = createFileRoute('/_auth')({
   beforeLoad: async () => {
     await authReady();
-    if (getAuthSnapshot().user) throw redirect({ to: '/' });
+    if (getAuthSnapshot().user) throw redirect({ to: '/dashboard' });
   },
   component: AuthLayout,
 });

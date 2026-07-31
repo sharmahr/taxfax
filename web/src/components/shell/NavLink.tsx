@@ -18,7 +18,7 @@ interface NavLinkProps {
  */
 export function NavLink({ to, icon: Icon, label, collapsed = false, onNavigate }: NavLinkProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const active = to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
+  const active = pathname === to || pathname.startsWith(`${to}/`);
 
   const link = (
     <Link

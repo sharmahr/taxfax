@@ -99,7 +99,7 @@ function InvitePage() {
       }
       await acceptInvite(token);
       await auth.currentUser?.getIdToken(true);
-      await navigate({ to: '/' });
+      await navigate({ to: '/dashboard' });
     } catch (err) {
       setError(firebaseErrorMessage(err));
       setBusy(false);

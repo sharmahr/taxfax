@@ -26,7 +26,7 @@ function LoginPage() {
   useEffect(() => {
     completeMagicLink()
       .then((done) => {
-        if (done) void navigate({ to: '/' });
+        if (done) void navigate({ to: '/dashboard' });
       })
       .catch((err) => setError(firebaseErrorMessage(err)));
   }, [navigate]);
@@ -38,7 +38,7 @@ function LoginPage() {
     try {
       if (mode === 'password') {
         await signIn(email, password);
-        await navigate({ to: '/' });
+        await navigate({ to: '/dashboard' });
       } else {
         await sendMagicLink(email);
         setLinkSent(true);

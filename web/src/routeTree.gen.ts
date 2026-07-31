@@ -9,13 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
-import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as PortalRouteImport } from './routes/portal'
+import { Route as AppChaseRouteImport } from './routes/_app/chase'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
+import { Route as AppReviewRouteImport } from './routes/_app/review'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthSignupRouteImport } from './routes/_auth/signup'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as PortalIndexRouteImport } from './routes/portal/index'
+import { Route as PortalEnterRouteImport } from './routes/portal/enter'
+import { Route as AppClientsIndexRouteImport } from './routes/_app/clients/index'
+import { Route as AppClientsClientIdRouteImport } from './routes/_app/clients/$clientId'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppSettingsBillingRouteImport } from './routes/_app/settings/billing'
+import { Route as AppSettingsCadenceRouteImport } from './routes/_app/settings/cadence'
+import { Route as AppSettingsMembersRouteImport } from './routes/_app/settings/members'
+import { Route as AppSettingsNotificationsRouteImport } from './routes/_app/settings/notifications'
+import { Route as AppSettingsProfileRouteImport } from './routes/_app/settings/profile'
+import { Route as AppSettingsTemplatesRouteImport } from './routes/_app/settings/templates'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -24,9 +46,34 @@ const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppIndexRoute = AppIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppChaseRoute = AppChaseRouteImport.update({
+  id: '/chase',
+  path: '/chase',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReviewRoute = AppReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -44,51 +91,222 @@ const InviteTokenRoute = InviteTokenRouteImport.update({
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalEnterRoute = PortalEnterRouteImport.update({
+  id: '/enter',
+  path: '/enter',
+  getParentRoute: () => PortalRoute,
+} as any)
+const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
+  id: '/clients/',
+  path: '/clients/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientsClientIdRoute = AppClientsClientIdRouteImport.update({
+  id: '/clients/$clientId',
+  path: '/clients/$clientId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsBillingRoute = AppSettingsBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsCadenceRoute = AppSettingsCadenceRouteImport.update({
+  id: '/cadence',
+  path: '/cadence',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsMembersRoute = AppSettingsMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsNotificationsRoute =
+  AppSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
+const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsTemplatesRoute = AppSettingsTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
+  '/portal': typeof PortalRouteWithChildren
+  '/chase': typeof AppChaseRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/onboarding': typeof AppOnboardingRoute
+  '/review': typeof AppReviewRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/login': typeof AuthLoginRoute
   '/signup': typeof AuthSignupRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/portal/enter': typeof PortalEnterRoute
+  '/portal/': typeof PortalIndexRoute
+  '/clients/$clientId': typeof AppClientsClientIdRoute
+  '/settings/billing': typeof AppSettingsBillingRoute
+  '/settings/cadence': typeof AppSettingsCadenceRoute
+  '/settings/members': typeof AppSettingsMembersRoute
+  '/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/settings/profile': typeof AppSettingsProfileRoute
+  '/settings/templates': typeof AppSettingsTemplatesRoute
+  '/clients/': typeof AppClientsIndexRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
+  '/chase': typeof AppChaseRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/onboarding': typeof AppOnboardingRoute
+  '/review': typeof AppReviewRoute
   '/login': typeof AuthLoginRoute
   '/signup': typeof AuthSignupRoute
   '/invite/$token': typeof InviteTokenRoute
+  '/portal/enter': typeof PortalEnterRoute
+  '/portal': typeof PortalIndexRoute
+  '/clients/$clientId': typeof AppClientsClientIdRoute
+  '/settings/billing': typeof AppSettingsBillingRoute
+  '/settings/cadence': typeof AppSettingsCadenceRoute
+  '/settings/members': typeof AppSettingsMembersRoute
+  '/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/settings/profile': typeof AppSettingsProfileRoute
+  '/settings/templates': typeof AppSettingsTemplatesRoute
+  '/clients': typeof AppClientsIndexRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/portal': typeof PortalRouteWithChildren
+  '/_app/chase': typeof AppChaseRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/onboarding': typeof AppOnboardingRoute
+  '/_app/review': typeof AppReviewRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/signup': typeof AuthSignupRoute
   '/invite/$token': typeof InviteTokenRoute
-  '/_app/': typeof AppIndexRoute
+  '/portal/enter': typeof PortalEnterRoute
+  '/portal/': typeof PortalIndexRoute
+  '/_app/clients/$clientId': typeof AppClientsClientIdRoute
+  '/_app/settings/billing': typeof AppSettingsBillingRoute
+  '/_app/settings/cadence': typeof AppSettingsCadenceRoute
+  '/_app/settings/members': typeof AppSettingsMembersRoute
+  '/_app/settings/notifications': typeof AppSettingsNotificationsRoute
+  '/_app/settings/profile': typeof AppSettingsProfileRoute
+  '/_app/settings/templates': typeof AppSettingsTemplatesRoute
+  '/_app/clients/': typeof AppClientsIndexRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/invite/$token'
+  fullPaths:
+    | '/'
+    | '/portal'
+    | '/chase'
+    | '/dashboard'
+    | '/onboarding'
+    | '/review'
+    | '/settings'
+    | '/login'
+    | '/signup'
+    | '/invite/$token'
+    | '/portal/enter'
+    | '/portal/'
+    | '/clients/$clientId'
+    | '/settings/billing'
+    | '/settings/cadence'
+    | '/settings/members'
+    | '/settings/notifications'
+    | '/settings/profile'
+    | '/settings/templates'
+    | '/clients/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/invite/$token'
+  to:
+    | '/'
+    | '/chase'
+    | '/dashboard'
+    | '/onboarding'
+    | '/review'
+    | '/login'
+    | '/signup'
+    | '/invite/$token'
+    | '/portal/enter'
+    | '/portal'
+    | '/clients/$clientId'
+    | '/settings/billing'
+    | '/settings/cadence'
+    | '/settings/members'
+    | '/settings/notifications'
+    | '/settings/profile'
+    | '/settings/templates'
+    | '/clients'
+    | '/settings'
   id:
     | '__root__'
+    | '/'
     | '/_app'
     | '/_auth'
+    | '/portal'
+    | '/_app/chase'
+    | '/_app/dashboard'
+    | '/_app/onboarding'
+    | '/_app/review'
+    | '/_app/settings'
     | '/_auth/login'
     | '/_auth/signup'
     | '/invite/$token'
-    | '/_app/'
+    | '/portal/enter'
+    | '/portal/'
+    | '/_app/clients/$clientId'
+    | '/_app/settings/billing'
+    | '/_app/settings/cadence'
+    | '/_app/settings/members'
+    | '/_app/settings/notifications'
+    | '/_app/settings/profile'
+    | '/_app/settings/templates'
+    | '/_app/clients/'
+    | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  PortalRoute: typeof PortalRouteWithChildren
   InviteTokenRoute: typeof InviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -103,11 +321,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/': {
-      id: '/_app/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/chase': {
+      id: '/_app/chase'
+      path: '/chase'
+      fullPath: '/chase'
+      preLoaderRoute: typeof AppChaseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/review': {
+      id: '/_app/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof AppReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_auth/login': {
@@ -131,15 +384,128 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal/': {
+      id: '/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/enter': {
+      id: '/portal/enter'
+      path: '/enter'
+      fullPath: '/portal/enter'
+      preLoaderRoute: typeof PortalEnterRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_app/clients/': {
+      id: '/_app/clients/'
+      path: '/clients'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AppClientsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clients/$clientId': {
+      id: '/_app/clients/$clientId'
+      path: '/clients/$clientId'
+      fullPath: '/clients/$clientId'
+      preLoaderRoute: typeof AppClientsClientIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/billing': {
+      id: '/_app/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AppSettingsBillingRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/cadence': {
+      id: '/_app/settings/cadence'
+      path: '/cadence'
+      fullPath: '/settings/cadence'
+      preLoaderRoute: typeof AppSettingsCadenceRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/members': {
+      id: '/_app/settings/members'
+      path: '/members'
+      fullPath: '/settings/members'
+      preLoaderRoute: typeof AppSettingsMembersRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/notifications': {
+      id: '/_app/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof AppSettingsNotificationsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/profile': {
+      id: '/_app/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof AppSettingsProfileRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/templates': {
+      id: '/_app/settings/templates'
+      path: '/templates'
+      fullPath: '/settings/templates'
+      preLoaderRoute: typeof AppSettingsTemplatesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
   }
 }
 
+interface AppSettingsRouteChildren {
+  AppSettingsBillingRoute: typeof AppSettingsBillingRoute
+  AppSettingsCadenceRoute: typeof AppSettingsCadenceRoute
+  AppSettingsMembersRoute: typeof AppSettingsMembersRoute
+  AppSettingsNotificationsRoute: typeof AppSettingsNotificationsRoute
+  AppSettingsProfileRoute: typeof AppSettingsProfileRoute
+  AppSettingsTemplatesRoute: typeof AppSettingsTemplatesRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsBillingRoute: AppSettingsBillingRoute,
+  AppSettingsCadenceRoute: AppSettingsCadenceRoute,
+  AppSettingsMembersRoute: AppSettingsMembersRoute,
+  AppSettingsNotificationsRoute: AppSettingsNotificationsRoute,
+  AppSettingsProfileRoute: AppSettingsProfileRoute,
+  AppSettingsTemplatesRoute: AppSettingsTemplatesRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
-  AppIndexRoute: typeof AppIndexRoute
+  AppChaseRoute: typeof AppChaseRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
+  AppReviewRoute: typeof AppReviewRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppClientsClientIdRoute: typeof AppClientsClientIdRoute
+  AppClientsIndexRoute: typeof AppClientsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppIndexRoute: AppIndexRoute,
+  AppChaseRoute: AppChaseRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
+  AppReviewRoute: AppReviewRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppClientsClientIdRoute: AppClientsClientIdRoute,
+  AppClientsIndexRoute: AppClientsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -156,9 +522,24 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface PortalRouteChildren {
+  PortalEnterRoute: typeof PortalEnterRoute
+  PortalIndexRoute: typeof PortalIndexRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalEnterRoute: PortalEnterRoute,
+  PortalIndexRoute: PortalIndexRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  PortalRoute: PortalRouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
