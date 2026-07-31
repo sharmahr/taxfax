@@ -47,7 +47,7 @@ const PROJECT_ID = 'taxfax-364f6';
 // The app uploads to the `.appspot.com` bucket under the emulator (so the
 // Storage extension triggers fire locally); admin reads must match it.
 const BUCKET = 'taxfax-364f6.appspot.com';
-const API_KEY = 'AIzaSyCkXJkrhq8uNPok0EGWtxer-F7O3D1nev0';
+const API_KEY = 'fake-api-key'; // any string is accepted by the Auth emulator
 
 const FIRM_ID = 'whitfield-rowe';
 const CLIENT_ID = 'eleanor-whitfield';
