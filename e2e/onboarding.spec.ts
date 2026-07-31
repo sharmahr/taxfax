@@ -228,13 +228,21 @@ test('firm signs up, imports a messy CSV, and a re-run is a no-op', async ({ pag
   const priya = after.find((c) => c.displayName === 'Priya Raman');
   expect(priya?.entityType).toBe('partnership'); // 1065 → partnership, inferred
 
-  // ── 5. Re-run the identical import — it must be a no-op ─────────────────────
+  // ── 5. Re-run the identical import — the preview must refuse it ────────────
+  // Re-uploading the file you just imported is the second thing every firm does.
+  // The server has always deduped by email — that is proven against the real
+  // callable in functions/src/firm/tenancy.test.ts:350 — but the preview used to
+  // offer "Import 5 clients" and then create nothing. It now reads the roster
+  // first, so the refusal is what needs proving here, and duplicating the
+  // server-side guarantee at this layer would only make it slower to run.
   await page.getByRole('button', { name: /import another file/i }).click();
   await expect(page.getByText(/drop a csv here/i)).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles(csvFile());
   await expect(page.getByRole('heading', { name: 'Match your columns' })).toBeVisible();
-  await page.getByRole('button', { name: /^Import 5 clients$/ }).click();
-  await expect(page.getByRole('heading', { name: /already up to date/i })).toBeVisible({ timeout: 20_000 });
+
+  await expect(page.getByText(/your roster is up to date/i)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('button', { name: /^Nothing to import$/ })).toBeDisabled();
+  await shot(page, info, '03b-import-refused');
 
   const afterRerun = await clientsFor(firmId);
   expect(afterRerun, 'a re-run must not duplicate anyone').toHaveLength(5);
