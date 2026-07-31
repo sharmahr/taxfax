@@ -44,6 +44,7 @@ import { dirname, join } from 'node:path';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { capture } from './capture';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
@@ -232,7 +233,7 @@ test('portal renders in the taxpayer’s own language', async ({ page }, testInf
     // flash. (`div[lang=…]` matches the shell, not the switcher's <option>s.)
     await expect(page.locator(`div[lang="${BCP47[loc]}"]`).first()).toBeVisible({ timeout: 30_000 });
     if (loc === 'ar') await expect(page.locator('div[dir="rtl"]').first()).toBeVisible();
-    await page.screenshot({ path: join(SHOTS, `i18n-${loc}-${tag}.png`), fullPage: true });
+    await capture(page, join(SHOTS, `i18n-${loc}-${tag}.png`));
   }
 });
 
@@ -271,7 +272,7 @@ test('taxpayer picks a language and it follows them', async ({ page }, testInfo)
   await page.reload();
   await expect(page.getByText('Todavía falta')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Still needed')).toHaveCount(0);
-  await page.screenshot({ path: join(SHOTS, `i18n-switch-es-${tag}.png`), fullPage: true });
+  await capture(page, join(SHOTS, `i18n-switch-es-${tag}.png`));
 });
 
 test('taxpayer: link → send → recognized → undo → done, in one sitting', async ({ page }, testInfo) => {
@@ -320,7 +321,7 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
   await signInAsTaxpayer(page);
   await expect(page).toHaveURL(/\/portal\/?$/);
   await expect(page.getByText(/of\s+\d+\s+received/i)).toBeVisible();
-  await page.screenshot({ path: join(SHOTS, `${tag}-01-list.png`), fullPage: true });
+  await capture(page, join(SHOTS, `${tag}-01-list.png`));
 
   // ── 2. Send the document the way this taxpayer actually would ───────────────
   // Desktop: the requested W-2, as a PDF, straight into its checklist row.
@@ -369,7 +370,7 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
   await expect(scope.getByText(new RegExp(`${startedName.source}|Preparing|Got it|%`, 'i')).first()).toBeVisible({
     timeout: 20_000,
   });
-  await page.screenshot({ path: join(SHOTS, `${tag}-02-mid-upload.png`), fullPage: true });
+  await capture(page, join(SHOTS, `${tag}-02-mid-upload.png`));
 
   // ── 3. Recognized: the record exists, correctly, from a real round-trip ─────
   // This exact sentence can only come from our upload — no seed uses the
@@ -405,7 +406,7 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
     );
   }
   await expect(page.getByText(confirmText).first()).toBeVisible({ timeout: 60_000 });
-  await page.screenshot({ path: join(SHOTS, `${tag}-03-recognized.png`), fullPage: true });
+  await capture(page, join(SHOTS, `${tag}-03-recognized.png`));
 
   // ── 4. Prove it landed where the rules demand, at the canonical path ────────
   const bucket = getStorage(admin).bucket(BUCKET);
@@ -458,7 +459,7 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
 
   // The confirmation is gone from the UI — the taxpayer sees it was undone.
   await expect(page.getByText(confirmText)).toHaveCount(0, { timeout: 15_000 });
-  await page.screenshot({ path: join(SHOTS, `${tag}-04-undo.png`), fullPage: true });
+  await capture(page, join(SHOTS, `${tag}-04-undo.png`));
 
   // ── 6. Done state: finish the list, then confirm the unambiguous exit ───────
   const reqs = await requests().get();
@@ -486,14 +487,14 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
   // "Nothing more to send" is unique to the done panel — proof the taxpayer is
   // told, unambiguously, that they can leave.
   await expect(page.getByText(/nothing more to send/i)).toBeVisible();
-  await page.screenshot({ path: join(SHOTS, `${tag}-05-done.png`), fullPage: true });
+  await capture(page, join(SHOTS, `${tag}-05-done.png`));
 
   // The vermilion seal is the last thing a taxpayer sees, and the firm's clients
   // use both themes. Toggling the `.dark` class is precisely what the app's own
   // applyTheme() does (web/src/lib/theme.ts), so this is a faithful dark render.
   await page.evaluate(() => document.documentElement.classList.add('dark'));
   await expect(page.getByText(/that.s everything/i)).toBeVisible();
-  await page.screenshot({ path: join(SHOTS, `${tag}-05-done-dark.png`), fullPage: true });
+  await capture(page, join(SHOTS, `${tag}-05-done-dark.png`));
   await page.evaluate(() => document.documentElement.classList.remove('dark'));
 
   expect(consoleErrors, `console errors: ${consoleErrors.join(' | ')}`).toEqual([]);

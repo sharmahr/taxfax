@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { capture } from './capture';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SHOTS = join(HERE, 'screenshots');
@@ -491,7 +492,7 @@ test('the client-detail UI reflects a real send live, over the realtime subscrip
   // chase that hasn't sent a reminder yet.
   await expect(panel.getByText('Checklist sent')).toBeVisible();
   await expect(panel.getByText(/Standard\s+cadence/i)).toBeVisible();
-  await page.screenshot({ path: join(SHOTS, `chase-${info.project.name}-uilive-before.png`), fullPage: true });
+  await capture(page, join(SHOTS, `chase-${info.project.name}-uilive-before.png`));
 
   // Watch the console only for the live-update phase itself — the detail has
   // finished mounting, so any error now is a real one, not a nav-time dev flake.
@@ -516,7 +517,7 @@ test('the client-detail UI reflects a real send live, over the realtime subscrip
   // unstrained suite, not an SDK setting.
   await expect(panel.getByText('Reminder 1 sent')).toBeVisible({ timeout: 60_000 });
   await expect(panel.getByText('Checklist sent')).toHaveCount(0);
-  await page.screenshot({ path: join(SHOTS, `chase-${info.project.name}-uilive-after.png`), fullPage: true });
+  await capture(page, join(SHOTS, `chase-${info.project.name}-uilive-after.png`));
 
   // The live change reflects a real Firestore write, not just a UI flip.
   const doc = (await clientRef('uilive').get()).data()!;

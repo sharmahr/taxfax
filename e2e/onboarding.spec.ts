@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { capture } from './capture';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SHOTS = join(HERE, 'screenshots');
@@ -83,7 +84,7 @@ function csvFile() {
 }
 
 function shot(page: Page, info: TestInfo, name: string) {
-  return page.screenshot({ path: join(SHOTS, `onb-${info.project.name}-${name}.png`), fullPage: true });
+  return capture(page, join(SHOTS, `onb-${info.project.name}-${name}.png`));
 }
 
 // Sonner pauses its auto-dismiss timer while the headless page is unfocused, so
