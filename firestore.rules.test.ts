@@ -6,7 +6,7 @@
  */
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import {
   assertFails,
   assertSucceeds,
@@ -15,12 +15,15 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 const FIRM_A = 'firmA';
@@ -83,7 +86,11 @@ before(async () => {
           uploadedBy: 'someone',
           sizeBytes: 100,
         });
-        await setDoc(doc(db, `firms/${firmId}/clients/${clientId}/chaseMessages/m1`), { id: 'm1' });
+        await setDoc(doc(db, `firms/${firmId}/clients/${clientId}/chaseMessages/m1`), {
+          id: 'm1',
+          firmId,
+          clientId,
+        });
       }
       await setDoc(doc(db, `firms/${firmId}/activity/e1`), { id: 'e1', summary: 'x' });
     }
@@ -138,6 +145,103 @@ describe('tenant isolation', () => {
       .authenticatedContext('attacker', { firms: { [FIRM_B]: 'owner' } })
       .firestore();
     await assertFails(getDoc(clientDoc(db, FIRM_A, CLIENT_1)));
+  });
+});
+
+describe('collection-group worklists', () => {
+  // The dashboard, review queue and chase console read across every client in
+  // the firm at once. Nested rules do not apply to collectionGroup() queries,
+  // so these paths are governed solely by the {path=**} rules — and the
+  // emulator will happily serve a query that production denies, which is
+  // exactly how this shipped broken the first time.
+
+  it('staff can read their own firm\'s worklists across all clients', async () => {
+    const db = staff('staffA', FIRM_A, 'preparer');
+    await assertSucceeds(
+      getDocs(query(collectionGroup(db, 'requests'), where('firmId', '==', FIRM_A))),
+    );
+    await assertSucceeds(
+      getDocs(
+        query(
+          collectionGroup(db, 'documents'),
+          where('firmId', '==', FIRM_A),
+          where('state', 'in', ['needs_review', 'classified']),
+        ),
+      ),
+    );
+    await assertSucceeds(
+      getDocs(query(collectionGroup(db, 'chaseMessages'), where('firmId', '==', FIRM_A))),
+    );
+  });
+
+  it('an unfiltered collection-group query is denied outright', async () => {
+    // The whole query fails rather than silently returning only the caller's
+    // own rows, because the rule is evaluated against every candidate doc and
+    // FIRM_B's are in scope. This is what makes the firmId filter load-bearing.
+    const db = staff('staffA', FIRM_A, 'owner');
+    await assertFails(getDocs(collectionGroup(db, 'requests')));
+    await assertFails(getDocs(collectionGroup(db, 'documents')));
+    await assertFails(getDocs(collectionGroup(db, 'chaseMessages')));
+  });
+
+  it('staff cannot aim a collection-group query at another firm', async () => {
+    const db = staff('staffB', FIRM_B, 'owner');
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'requests'), where('firmId', '==', FIRM_A))),
+    );
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'documents'), where('firmId', '==', FIRM_A))),
+    );
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'chaseMessages'), where('firmId', '==', FIRM_A))),
+    );
+  });
+
+  it('a taxpayer cannot read across clients, even their own firm', async () => {
+    // The portal claim authorises one client by path. It must not become a
+    // firm-wide read just because the query shape changed.
+    const db = taxpayer('tp1', FIRM_A, CLIENT_1);
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'requests'), where('firmId', '==', FIRM_A))),
+    );
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'documents'), where('firmId', '==', FIRM_A))),
+    );
+    await assertFails(
+      getDocs(query(collectionGroup(db, 'chaseMessages'), where('firmId', '==', FIRM_A))),
+    );
+  });
+  it('every collection-group query in the app has a matching index', () => {
+    // The other half of the same trap, and the more dangerous half: the
+    // emulator creates indexes on demand, so a missing COLLECTION_GROUP index
+    // cannot fail here, in CI, or in any local run. It only fails in
+    // production, as FAILED_PRECONDITION, on a real customer's dashboard.
+    // This is the one place that can catch it before deploy.
+    //
+    // ponytail: matches on collection name only, not on the fields filtered.
+    // That is what actually broke (chaseMessages had no CG index at all).
+    // Parse the query shapes too if a field-level mismatch ever ships.
+    const idx = JSON.parse(readFileSync('firestore.indexes.json', 'utf8')) as {
+      indexes: { collectionGroup: string; queryScope: string }[];
+      fieldOverrides: { collectionGroup: string; indexes: { queryScope: string }[] }[];
+    };
+    const indexed = new Set([
+      ...idx.indexes.filter((i) => i.queryScope === 'COLLECTION_GROUP').map((i) => i.collectionGroup),
+      ...idx.fieldOverrides
+        .filter((f) => f.indexes.some((i) => i.queryScope === 'COLLECTION_GROUP'))
+        .map((f) => f.collectionGroup),
+    ]);
+
+    const queried = new Set<string>();
+    for (const rel of readdirSync('web/src', { recursive: true }) as string[]) {
+      if (!/\.tsx?$/.test(rel)) continue;
+      const src = readFileSync(`web/src/${rel}`, 'utf8');
+      for (const m of src.matchAll(/collectionGroup\(\s*\w+\s*,\s*'([^']+)'/g)) queried.add(m[1]!);
+    }
+
+    assert.ok(queried.size > 0, 'found no collectionGroup() calls — the scan itself is broken');
+    const missing = [...queried].filter((c) => !indexed.has(c));
+    assert.deepEqual(missing, [], `collection groups queried with no COLLECTION_GROUP index: ${missing.join(', ')}`);
   });
 });
 

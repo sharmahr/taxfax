@@ -171,6 +171,40 @@ service cloud.firestore {
     }
 
     // ═════════════════════════════════════════════════════════════════════
+    // Collection-group reads — the firm-wide worklists
+    //
+    // The nested rules above do NOT apply to collectionGroup() queries.
+    // Firestore requires an explicit {path=**} match, and without one the
+    // dashboard, review queue and chase console permission-deny in
+    // PRODUCTION while passing against the emulator — so this gap is
+    // invisible until it is live. The matching COLLECTION_GROUP indexes in
+    // firestore.indexes.json are the other half of the same trap.
+    //
+    // `list` only, deliberately: single-document reads are already covered
+    // by the nested rules, which scope by the real path. Staff only — a
+    // taxpayer reads their own checklist by path and never issues a
+    // cross-client query.
+    //
+    // Why this is safe. For a query, the rule is evaluated against every
+    // candidate document, and the query is denied outright if any one of
+    // them fails. A caller who drops the firm filter therefore sweeps in a
+    // foreign document and loses the whole query rather than quietly
+    // over-reading. That makes where('firmId','==',…) load-bearing rather
+    // than merely conventional.
+    // ═════════════════════════════════════════════════════════════════════
+    match /{path=**}/requests/{requestId} {
+      allow list: if isMember(resource.data.firmId);
+    }
+
+    match /{path=**}/documents/{documentId} {
+      allow list: if isMember(resource.data.firmId);
+    }
+
+    match /{path=**}/chaseMessages/{messageId} {
+      allow list: if isMember(resource.data.firmId);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
     // Per-user index — the one read that resolves a login to its workspaces
     // ═════════════════════════════════════════════════════════════════════
     match /users/{uid} {
