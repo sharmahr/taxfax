@@ -32,6 +32,8 @@ jobs:
       - run: npm ci
       - name: Taxonomy, checklist, naming, cadence
         run: npm run check
+      - name: Shared package tests
+        run: npm run test:shared
 
   typecheck:
     name: Typecheck and build
@@ -177,6 +179,8 @@ jobs:
         run: bash scripts/check-firebase-only.sh
       - name: No secrets committed
         run: bash scripts/check-no-secrets.sh
+      - name: User-facing copy is US English
+        run: bash scripts/check-us-english.sh
 
   # ── Deploy ─────────────────────────────────────────────────────────────────
   # main only, and only behind every check above. Rules deploy before hosting so
