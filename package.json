@@ -15,7 +15,7 @@
     "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --experimental-strip-types --test firestore.rules.test.ts storage.rules.test.ts",
     "test:rules:ci": "firebase emulators:exec --only firestore,storage --project taxfax-364f6 \"npm run test:rules\"",
     "test:shared": "node --experimental-strip-types --test \"packages/shared/src/**/*.test.ts\"",
-    "test:functions": "node --experimental-strip-types --test \"functions/src/**/*.test.ts\"",
+    "test:functions": "node --experimental-strip-types --test --test-concurrency=1 \"functions/src/**/*.test.ts\"",
     "test:functions:ci": "npm --prefix functions run build && firebase emulators:exec --only auth,firestore,functions --project taxfax-364f6 \"npm run test:functions\"",
     "verify": "npm run check && npm run test:shared && npm run test:rules && npm run test:functions:ci && npm run typecheck && npm run build",
     "emu": "firebase emulators:start --only auth,firestore,storage,functions,pubsub,eventarc --import .emulator-data --export-on-exit .emulator-data",
