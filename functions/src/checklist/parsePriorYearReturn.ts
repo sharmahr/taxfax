@@ -15,6 +15,7 @@
 
 import {
   DOC_TYPES,
+  LEP_LANGUAGES,
   emptyPriorYear,
   type DocTypeDef,
   type EntityType,
@@ -220,6 +221,56 @@ function detectSchedules(normPages: string[], full: string): string[] {
   const cCount = Math.max(cPages.length, /profit or loss from business/.test(full) ? 1 : 0);
   for (let i = 0; i < cCount; i++) schedules.push('C');
   return schedules;
+}
+
+// ── Schedule LEP (language preference) ────────────────────────────────────────
+
+/**
+ * Schedule LEP is the taxpayer's formal election of the language the IRS writes
+ * to them in. If it was in last year's package we already know how to address
+ * them, at no cost to the firm.
+ *
+ * The failure mode that matters is the *blank* schedule: a printed but unmarked
+ * form lists all twenty languages, and reading the first one off it would put a
+ * monolingual English client on Spanish. So when the full list is present a mark
+ * is required, and an ambiguous page yields nothing rather than a guess.
+ */
+const LEP_PAGE = /schedule lep|request for change in language preference/;
+
+/** A checked box survives extraction as an x, a tick, or a filled glyph. */
+const LEP_MARK = '[x\\u2611\\u2612\\u2713\\u2714\\u25a0\\u2588]';
+
+/**
+ * A three-digit code from the schedule, refusing anything that is really part of
+ * a longer number. The taxpayer's SSN is printed on this very page, and
+ * `012-34-5678` must not elect French.
+ */
+const LEP_CODE = '(?<![\\w-])(0(?:[01]\\d|20))(?![\\w-])';
+
+/** The box may extract either side of the code it belongs to. */
+const LEP_MARKED = [
+  new RegExp(`(?<![a-z0-9-])${LEP_MARK}\\s{0,3}${LEP_CODE}`, 'g'),
+  new RegExp(`${LEP_CODE}\\s{0,3}${LEP_MARK}(?![a-z0-9-])`, 'g'),
+];
+
+const codesIn = (page: string, re: RegExp): Set<string> =>
+  new Set([...page.matchAll(re)].map((m) => m[1]!));
+
+function detectLepElection(normPages: string[]): { code: string; language: string } | undefined {
+  const page = scopeMatching(normPages, LEP_PAGE);
+  if (!page) return undefined;
+
+  const marked = new Set(LEP_MARKED.flatMap((re) => [...codesIn(page, re)]));
+  const present = codesIn(page, new RegExp(LEP_CODE, 'g'));
+
+  // A ticked box wins. Failing that, tax software often prints only the elected
+  // row with no box that survives extraction — one code on a LEP page is
+  // unambiguous, twenty is the blank form and means nothing.
+  const code =
+    marked.size === 1 ? [...marked][0]! : present.size === 1 ? [...present][0]! : undefined;
+
+  const found = LEP_LANGUAGES.find((l) => l.code === code);
+  return found ? { code: found.code, language: found.language } : undefined;
 }
 
 // ── Line values ───────────────────────────────────────────────────────────────
@@ -501,6 +552,7 @@ export function parseReturnText(pages: string[]): PriorYearReturn {
   const itemized = schedules.includes('A');
   const state = detectState(mainForm);
   const dependents = entityType === 'individual' ? countDependents(full) : 0;
+  const lep = detectLepElection(normPages);
 
   const confidence = scoreConfidence({
     formType,
@@ -521,6 +573,7 @@ export function parseReturnText(pages: string[]): PriorYearReturn {
     schedules,
     lines,
     issuers,
+    ...(lep ? { lepCode: lep.code, lepLanguage: lep.language } : {}),
     itemized,
     documentCounts,
     confidence,

@@ -27,7 +27,7 @@ import {
 
 // ── A realistic nine-page 1040 filing package ────────────────────────────────
 // Married filing jointly, two dependents, a Schedule C business, a Schedule E
-// with two rentals, itemised deductions, estimated payments, a "yes" to the
+// with two rentals, itemized deductions, estimated payments, a "yes" to the
 // digital-asset question, and — attached to the same package — two W-2s, a
 // 1099-INT and a partnership K-1, each from a named issuer. Newlines are kept
 // because the issuer extractor reads raw page lines.
@@ -223,7 +223,7 @@ describe('generateChecklist — reasons quote the taxpayer’s own facts', () =>
     assert.match(hitFor('rental-summary').reason, /2 rental/);
   });
 
-  it('the itemised-deduction requests quote the amounts', () => {
+  it('the itemized-deduction requests quote the amounts', () => {
     assert.match(hitFor('charitable').reason, /\$9k/);
     assert.match(hitFor('estimated-payments').reason, /\$12k/);
     assert.ok(hitFor('medical-expenses'));

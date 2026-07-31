@@ -11,6 +11,7 @@
  *               sendChaseNow           fire the current step by hand
  *               previewChase           exact rendered email + SMS, no send
  *               optOutSms              portal-facing TCPA opt-out
+ *               setChaseLanguage       taxpayer or preparer picks the language
  *   Firestore   onChecklistComplete    stop the instant a client is done
  *               handleSmsOptOut        inbound STOP/START → Contact.smsOptOut
  *               mirrorEmailDelivery    mail delivery state → ChaseMessage
@@ -29,6 +30,7 @@ export {
   onChecklistComplete,
   handleSmsOptOut,
   optOutSms,
+  setChaseLanguage,
 } from './lifecycle.js';
 
 export { mirrorEmailDelivery, mirrorSmsDelivery } from './delivery.js';

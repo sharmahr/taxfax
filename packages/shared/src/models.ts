@@ -6,6 +6,9 @@
 
 export type Timestampish = { seconds: number; nanoseconds: number } | Date | number;
 
+import type { ClientLanguage } from './i18n/language.ts';
+import type { LocaleId } from './i18n/locales.ts';
+
 // ── Tenancy ─────────────────────────────────────────────────────────────────
 
 export type FirmRole = 'owner' | 'admin' | 'preparer' | 'viewer';
@@ -35,7 +38,7 @@ export const ROLE_DESCRIPTION: Record<FirmRole, string> = {
 export interface Firm {
   id: string;
   name: string;
-  /** URL-safe handle used on the client portal: taxfax.app/p/{slug}. */
+  /** URL-safe handle used on the client portal: taxfax.xyz/p/{slug}. */
   slug: string;
   createdAt: Timestampish;
   createdBy: string;
@@ -52,6 +55,13 @@ export interface Firm {
     supportPhone?: string;
   };
   chase: ChaseSettings;
+  /**
+   * Taxpayer-facing messages follow the client's language. Absent means on: a
+   * single-language firm never has to think about it, because a client with no
+   * Schedule LEP election and no override stays on English either way. A firm
+   * whose staff can't read a reply in Vietnamese can switch it off.
+   */
+  multilingual?: { enabled: boolean };
   seats: number;
   plan: 'trial' | 'solo' | 'firm' | 'multi';
   trialEndsAt?: Timestampish;
@@ -175,7 +185,7 @@ export interface Client {
   tags: string[];
   stage: ClientStage;
 
-  /** Denormalised counters kept current by Cloud Functions so the roster is one read per client. */
+  /** Denormalized counters kept current by Cloud Functions so the roster is one read per client. */
   progress: ClientProgress;
 
   /** Set once a prior-year return has been parsed. */
@@ -187,6 +197,13 @@ export interface Client {
   };
 
   chase: ClientChaseState;
+
+  /**
+   * The language we write to this taxpayer in. Usually detected from the
+   * Schedule LEP election on last year's return; a preparer or the taxpayer can
+   * override it. See `preferLanguage` for who wins.
+   */
+  language?: ClientLanguage;
 
   notes?: string;
   createdAt: Timestampish;
@@ -365,6 +382,7 @@ export type ActivityType =
   | 'chase_resumed'
   | 'client_viewed_portal'
   | 'stage_changed'
+  | 'language_detected'
   | 'member_invited'
   | 'member_joined';
 
@@ -442,6 +460,8 @@ export interface ChaseMessage {
   to: string;
   subject?: string;
   body: string;
+  /** Language it was written in. Absent on messages sent before this existed. */
+  locale?: LocaleId;
   /** Doc-type codes outstanding at send time, for the activity feed. */
   outstanding: string[];
   status: 'queued' | 'sent' | 'delivered' | 'failed' | 'skipped';

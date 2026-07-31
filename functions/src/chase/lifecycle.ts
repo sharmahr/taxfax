@@ -12,8 +12,8 @@ import type { CallableRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions';
 
-import { CHASEABLE_STAGES, CLIENT_STAGE_LABEL, ROLE_RANK, groups, paths } from '@taxfax/shared';
-import type { Client, ClientStage, Contact, FirmRole } from '@taxfax/shared';
+import { CHASEABLE_STAGES, CLIENT_STAGE_LABEL, ROLE_RANK, groups, isLocaleId, localeRecord, paths, preferLanguage, smsCost } from '@taxfax/shared';
+import type { Client, ClientLanguage, ClientStage, Contact, FirmRole } from '@taxfax/shared';
 
 import { logActivity } from '../lib/activity.js';
 import { FieldValue, Timestamp, db } from '../lib/admin.js';
@@ -25,7 +25,6 @@ import {
   firmContext,
   isSendable,
   loadOutstanding,
-  outstandingLabel,
   renderStep,
   resolvePreparer,
   resolveRecipients,
@@ -362,17 +361,23 @@ export const previewChase = onCall(CALL_OPTS, async (request) => {
     stepIndex,
     tone: step.tone,
     channels: step.channels,
+    locale: copy.locale,
     email: rendered.email
-      ? { subject: rendered.email.subject, text: rendered.email.body, html: textToHtml(rendered.email.body) }
+      ? {
+          subject: rendered.email.subject,
+          text: rendered.email.body,
+          html: textToHtml(rendered.email.body, copy.locale),
+        }
       : null,
     sms: rendered.sms,
+    smsCost: rendered.sms ? smsCost(rendered.sms) : null,
     recipients: {
       emails: recipients.emails,
       phones: recipients.phones,
       emailSuppressed: recipients.emailSuppressed,
       smsSuppressed: recipients.smsSuppressed,
     },
-    outstanding: outstanding.requests.map(outstandingLabel),
+    outstanding: copy.outstanding,
     outstandingCount: outstanding.requests.length,
     totalCount: outstanding.totalCount,
     daysWaiting: copy.daysWaiting,
@@ -478,4 +483,53 @@ export const optOutSms = onCall(CALL_OPTS, async (request) => {
 
   await db.doc(paths.client(firmId, clientId)).update({ [`${which}.${field}`]: value, updatedAt: FieldValue.serverTimestamp() });
   return { ok: true, contact: which, channel: field === 'emailOptOut' ? 'email' : 'sms', optOut: value };
+});
+
+// ── setChaseLanguage — the human override ────────────────────────────────────
+
+/**
+ * Set the language a taxpayer is written to in.
+ *
+ * Accepts the taxpayer through their portal claim, or firm staff. Which one it
+ * is decides the precedence: a taxpayer's own choice outranks the preparer's,
+ * and both outrank whatever we detected on last year's Schedule LEP. The
+ * taxpayer cannot write their client document directly (the rules forbid it),
+ * which is exactly why this is a callable and not a client-side update.
+ */
+export const setChaseLanguage = onCall(CALL_OPTS, async (request) => {
+  const { firmId, clientId } = requireTarget(request.data);
+  await requireAuth(request);
+
+  const token = (request.auth?.token ?? {}) as { portal?: { firmId?: string; clientId?: string }; firms?: Record<string, FirmRole> };
+  const isPortal = token.portal?.firmId === firmId && token.portal?.clientId === clientId;
+  const role = token.firms?.[firmId];
+  const isStaff = !!role && ROLE_RANK[role] >= ROLE_RANK.preparer;
+  if (!isPortal && !isStaff) throw new HttpsError('permission-denied', 'You can’t change this client’s messaging settings.');
+
+  const locale = (request.data as { locale?: unknown }).locale;
+  if (!isLocaleId(locale)) throw new HttpsError('invalid-argument', 'That language is not one we write in.');
+
+  const next: ClientLanguage = {
+    locale,
+    source: isPortal ? 'taxpayer' : 'preparer',
+    updatedAt: Timestamp.now(),
+  };
+
+  const ref = db.doc(paths.client(firmId, clientId));
+  const applied = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError('not-found', 'That client no longer exists.');
+    const current = (snap.data() as Client).language;
+    // Carry the Schedule LEP evidence forward: a human choosing a language does
+    // not erase the fact that the IRS was told something different.
+    const merged = preferLanguage(current, {
+      ...next,
+      ...(current?.lepCode ? { lepCode: current.lepCode } : {}),
+      ...(current?.unsupported ? { unsupported: current.unsupported } : {}),
+    });
+    if (merged) tx.set(ref, { language: merged, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return merged ?? current ?? next;
+  });
+
+  return { ok: true, locale: applied.locale, source: applied.source, name: localeRecord(applied.locale).endonym };
 });

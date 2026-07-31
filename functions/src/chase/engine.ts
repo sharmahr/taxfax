@@ -11,12 +11,17 @@ import {
   CHASE_PROFILES,
   DEFAULT_CHASE_SETTINGS,
   TONE_LABEL,
+  directionOf,
+  docCodeLabel,
   docType,
+  effectiveLocale,
+  multilingualEnabled,
   nextSendableSlot,
   paths,
   renderEmail,
   renderSms,
   stepDueAt,
+  t,
 } from '@taxfax/shared';
 import type {
   ChaseChannel,
@@ -31,6 +36,7 @@ import type {
   DocRequest,
   Firm,
   FirmMember,
+  LocaleId,
   RenderedMessage,
   RequestPriority,
   Timestampish,
@@ -54,8 +60,8 @@ export const ERROR_COOLDOWN_MS = 15 * 60 * 1000;
 const DAILY_SEND_CAP = Number(process.env.CHASE_DAILY_SEND_CAP ?? 2500);
 
 /** Verified sending identity. Replies are redirected per-firm via replyTo. */
-const EMAIL_SENDER = process.env.CHASE_EMAIL_SENDER ?? 'no-reply@mail.taxfax.app';
-const PORTAL_BASE = (process.env.PORTAL_BASE_URL ?? 'https://taxfax.app').replace(/\/+$/, '');
+const EMAIL_SENDER = process.env.CHASE_EMAIL_SENDER ?? 'no-reply@mail.taxfax.xyz';
+const PORTAL_BASE = (process.env.PORTAL_BASE_URL ?? 'https://taxfax.xyz').replace(/\/+$/, '');
 
 const PRIORITY_RANK: Record<RequestPriority, number> = { critical: 0, standard: 1, optional: 2 };
 
@@ -309,11 +315,19 @@ export async function loadOutstanding(firmId: string, clientId: string, progress
 }
 
 /** Human, recognisable name for a missing item: the preparer's own label wins;
- *  else the form code with its known issuers; else the code and full name. */
-export function outstandingLabel(r: DocRequest): string {
+ *  else the form code with its known issuers; else the code and full name.
+ *
+ *  IRS identifiers are never translated. "1099-DIV" is printed in Latin on the
+ *  paper the taxpayer is hunting for in a drawer; a Korean paraphrase of it
+ *  makes the document harder to find, not easier. Only the plain-language
+ *  descriptors ("Property tax", "Mileage") change language. */
+export function outstandingLabel(r: DocRequest, locale: LocaleId): string {
   if (r.label && r.label.trim()) return r.label.trim();
   const dt = docType(r.docTypeId);
-  if (r.expectedIssuers && r.expectedIssuers.length) return `${dt.code} from ${r.expectedIssuers.join(', ')}`;
+  const code = locale === 'en' ? dt.code : docCodeLabel(locale, r.docTypeId, dt.code);
+  if (r.expectedIssuers && r.expectedIssuers.length)
+    return t(locale, 'item.fromIssuer', { code, issuers: r.expectedIssuers.join(', ') });
+  if (locale !== 'en') return code;
   return dt.code === dt.label ? dt.code : `${dt.label} (${dt.code})`;
 }
 
@@ -325,6 +339,15 @@ export function portalUrl(firm: Firm): string {
   return `${PORTAL_BASE}/p/${firm.slug}`;
 }
 
+/**
+ * The language this client's messages go out in. A firm that has switched
+ * multilingual off is back on English for everyone, immediately, without any
+ * per-client data being touched.
+ */
+export function clientLocale(ctx: FirmContext, client: Client): LocaleId {
+  return effectiveLocale(client.language, multilingualEnabled(ctx.firm));
+}
+
 // ── Copy assembly + rendering ────────────────────────────────────────────────
 
 export function buildCopyInput(
@@ -333,32 +356,42 @@ export function buildCopyInput(
   outstanding: Outstanding,
   preparerName: string,
   now: Date,
-): ChaseCopyInput {
+): LocalizedCopy {
   const startedAt = toDate(client.chase?.startedAt) ?? now;
   const firstName = (client.primaryContact?.name || client.displayName || 'there').trim().split(/\s+/)[0];
+  const locale = clientLocale(ctx, client);
   return {
     clientFirstName: firstName,
     firmName: ctx.firm.branding?.displayName || ctx.firm.name,
     preparerName,
-    outstanding: outstanding.requests.map(outstandingLabel),
+    outstanding: outstanding.requests.map((r) => outstandingLabel(r, locale)),
     outstandingCount: outstanding.requests.length,
     totalCount: outstanding.totalCount,
     portalUrl: portalUrl(ctx.firm),
     daysWaiting: Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / DAY_MS)),
     daysToDeadline: daysToDeadline(now, ctx.settings.deadline, ctx.tz),
     signature: ctx.settings.signature || '',
+    locale,
   };
 }
+
+/**
+ * A copy input whose locale has already been resolved. `ChaseCopyInput.locale`
+ * is optional so English callers can omit it; once `buildCopyInput` has run it
+ * is always set, and requiring it here means no downstream renderer can quietly
+ * fall back to English on a client who elected another language.
+ */
+export type LocalizedCopy = ChaseCopyInput & { locale: LocaleId };
 
 export interface RenderedStep {
   step: ChaseStep;
   tone: ChaseTone;
   email: RenderedMessage | null;
   sms: string | null;
-  copy: ChaseCopyInput;
+  copy: LocalizedCopy;
 }
 
-export function renderStep(step: ChaseStep, copy: ChaseCopyInput): RenderedStep {
+export function renderStep(step: ChaseStep, copy: LocalizedCopy): RenderedStep {
   return {
     step,
     tone: step.tone,
@@ -374,11 +407,23 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export function textToHtml(text: string): string {
-  const linked = escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#2563eb">$1</a>');
+/**
+ * The plain-text body carries Unicode isolates (FSI…PDI) around interpolated
+ * LTR runs. In HTML the equivalent is `<bdi>`, which every mail client that can
+ * render Arabic already understands, so they are converted rather than escaped
+ * into visible mojibake. The RLMs that pin bullet lines are dropped: `dir` on
+ * the container does that job in HTML.
+ */
+export function textToHtml(text: string, locale: LocaleId): string {
+  const rtl = directionOf(locale) === 'rtl';
+  const linked = escapeHtml(text)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#2563eb">$1</a>')
+    .replace(/[\u2066-\u2068]/g, '<bdi>')
+    .replace(/\u2069/g, '</bdi>')
+    .replace(/\u200f/g, '');
   return (
-    '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;' +
-    'font-size:15px;line-height:1.55;color:#1a1a1a;white-space:pre-wrap">' +
+    `<div${rtl ? ' dir="rtl"' : ''} style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;` +
+    `font-size:15px;line-height:1.55;color:#1a1a1a;white-space:pre-wrap${rtl ? ';text-align:right' : ''}">` +
     linked +
     '</div>'
   );
@@ -415,13 +460,14 @@ async function queueEmail(
   message: RenderedMessage,
   docId: string,
   chase: ChaseRef,
+  locale: LocaleId,
 ): Promise<string> {
   const ref = db.collection(paths.mail()).doc(docId);
   await createOnce(ref, {
     to,
     from: senderFrom(firm),
     replyTo: firm.branding?.replyToEmail ?? EMAIL_SENDER,
-    message: { subject: message.subject, text: message.body, html: textToHtml(message.body) },
+    message: { subject: message.subject, text: message.body, html: textToHtml(message.body, locale) },
     chase,
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -441,7 +487,7 @@ async function queueStaffEmail(firm: Firm, to: string, message: RenderedMessage,
     to: [to],
     from: senderFrom(firm),
     replyTo: firm.branding?.replyToEmail ?? EMAIL_SENDER,
-    message: { subject: message.subject, text: message.body, html: textToHtml(message.body) },
+    message: { subject: message.subject, text: message.body, html: textToHtml(message.body, 'en') },
     createdAt: FieldValue.serverTimestamp(),
   });
 }
@@ -457,6 +503,7 @@ export interface ChaseMessageRecord {
   body: string;
   outstanding: string[];
   deliveryRef: string;
+  locale: LocaleId;
 }
 
 async function writeChaseMessage(rec: ChaseMessageRecord, docId: string): Promise<void> {
@@ -471,6 +518,7 @@ async function writeChaseMessage(rec: ChaseMessageRecord, docId: string): Promis
     to: rec.to,
     ...(rec.subject ? { subject: rec.subject } : {}),
     body: rec.body,
+    locale: rec.locale,
     outstanding: rec.outstanding,
     status: 'queued',
     deliveryRef: rec.deliveryRef,
@@ -529,7 +577,8 @@ export async function notifyPreparerEscalated(
 ): Promise<void> {
   const prep = await resolvePreparer(ctx, client.assignedTo);
   if (!prep.email) return;
-  const items = outstanding.map((r) => `  •  ${outstandingLabel(r)}`).join('\n') || '  •  (checklist now empty)';
+  // Staff surface: the preparer reads this, not the taxpayer, so it stays English.
+  const items = outstanding.map((r) => `  •  ${outstandingLabel(r, 'en')}`).join('\n') || '  •  (checklist now empty)';
   const lede =
     reason === 'unreachable'
       ? `We couldn't reach ${client.displayName} on any channel — every email and phone we have is opted out or missing.`
@@ -554,7 +603,7 @@ This is where a person does better than a reminder. TaxFax has stopped chasing t
 async function notifyPreparerHeadsUp(ctx: FirmContext, client: Client, tone: ChaseTone, outstanding: DocRequest[], daysWaiting: number): Promise<void> {
   const prep = await resolvePreparer(ctx, client.assignedTo);
   if (!prep.email) return;
-  const items = outstanding.map((r) => `  •  ${outstandingLabel(r)}`).join('\n');
+  const items = outstanding.map((r) => `  •  ${outstandingLabel(r, 'en')}`).join('\n');
   const subject = `${client.displayName}: now at "${TONE_LABEL[tone]}", ${outstanding.length} still missing`;
   const body = `Heads up — ${client.displayName} has been in the queue ${daysWaiting} days and we've just sent the "${TONE_LABEL[tone]}" reminder. Still waiting on:
 ${items}
@@ -655,13 +704,17 @@ export async function sendStep(input: SendStepInput): Promise<SendStepResult> {
 
   const codes = outstandingCodes(outstanding.requests);
   const base = `${ctx.firmId}__${client.id}__${stepIndex}`;
+  const locale = rendered.copy.locale;
 
   if (rendered.email && recipients.emails.length > 0) {
-    const deliveryRef = await queueEmail(ctx.firm, recipients.emails, rendered.email, `${base}__email`, {
-      firmId: ctx.firmId,
-      clientId: client.id,
-      messageId: `${stepIndex}-email`,
-    });
+    const deliveryRef = await queueEmail(
+      ctx.firm,
+      recipients.emails,
+      rendered.email,
+      `${base}__email`,
+      { firmId: ctx.firmId, clientId: client.id, messageId: `${stepIndex}-email` },
+      locale,
+    );
     await writeChaseMessage(
       {
         firmId: ctx.firmId,
@@ -674,6 +727,7 @@ export async function sendStep(input: SendStepInput): Promise<SendStepResult> {
         body: rendered.email.body,
         outstanding: codes,
         deliveryRef,
+        locale,
       },
       `${stepIndex}-email`,
     );
@@ -698,6 +752,7 @@ export async function sendStep(input: SendStepInput): Promise<SendStepResult> {
           body: rendered.sms,
           outstanding: codes,
           deliveryRef,
+          locale,
         },
         `${stepIndex}-sms-${i}`,
       );

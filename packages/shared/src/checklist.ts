@@ -27,6 +27,15 @@ export interface PriorYearReturn {
   lines: Record<string, number>;
   /** Payers named on the return's attachments, grouped by document type. */
   issuers: { docTypeId: string; name: string }[];
+  /**
+   * Schedule LEP code, when the taxpayer attached one: a formal election of the
+   * language the IRS should write to them in. Three digits as printed on the
+   * form, e.g. `'003'`. This is the whole reason TaxFax can chase in the right
+   * language without the firm lifting a finger.
+   */
+  lepCode?: string;
+  /** The IRS's English name for that language, e.g. `'Vietnamese'`. */
+  lepLanguage?: string;
   itemized: boolean;
   /** Count of each source document type found in last year's package. */
   documentCounts: Record<string, number>;
@@ -466,7 +475,7 @@ export const CHECKLIST_RULES: ChecklistRule[] = [
       prior.itemized
         ? {
             quantity: 1,
-            reason: `You itemised last year${line(prior, 'schA-14') ? ` and gave ${usd(line(prior, 'schA-14'))}` : ''}. Anything over $250 needs a written acknowledgement from the charity.`,
+            reason: `You itemized last year${line(prior, 'schA-14') ? ` and gave ${usd(line(prior, 'schA-14'))}` : ''}. Anything over $250 needs a written acknowledgment from the charity.`,
           }
         : false,
   },
@@ -589,7 +598,7 @@ export const CHECKLIST_RULES: ChecklistRule[] = [
       line(prior, '26') > 0 || has(prior, 'SE') || has(prior, 'C')
         ? {
             quantity: 1,
-            reason: `You made estimated payments last year${line(prior, '26') ? ` totalling ${usd(line(prior, '26'))}` : ''}. We need the exact date and amount of each one.`,
+            reason: `You made estimated payments last year${line(prior, '26') ? ` totaling ${usd(line(prior, '26'))}` : ''}. We need the exact date and amount of each one.`,
           }
         : false,
   },
@@ -599,7 +608,7 @@ export const CHECKLIST_RULES: ChecklistRule[] = [
     priority: 'standard',
     evaluate: () => ({
       quantity: 1,
-      reason: 'So any refund reaches you by direct deposit instead of a paper cheque.',
+      reason: 'So any refund reaches you by direct deposit instead of a paper check.',
     }),
   },
 

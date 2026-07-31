@@ -7,6 +7,18 @@
  */
 
 import type { ChaseProfile, ChaseProfileId, ChaseSettings, ChaseTone } from './models.ts';
+import {
+  DEFAULT_LOCALE,
+  RLM,
+  dictionary,
+  formatList,
+  formatMonthDay,
+  interpolate,
+  localeRecord,
+  t,
+  type LocaleId,
+  type Vars,
+} from './i18n/index.ts';
 
 export const CHASE_PROFILES: Record<ChaseProfileId, ChaseProfile> = {
   gentle: {
@@ -137,6 +149,12 @@ export interface ChaseCopyInput {
   daysWaiting: number;
   daysToDeadline: number;
   signature: string;
+  /**
+   * The taxpayer's language. Absent means English — so every existing caller,
+   * fixture and preview keeps rendering exactly what it rendered before.
+   * `outstanding` is expected to already be in this language.
+   */
+  locale?: LocaleId;
 }
 
 export interface RenderedMessage {
@@ -144,125 +162,88 @@ export interface RenderedMessage {
   body: string;
 }
 
-const listTop = (items: string[], max = 3): string => {
+const listTop = (locale: LocaleId, items: string[], max = 2): string => {
   const shown = items.slice(0, max);
   const rest = items.length - shown.length;
-  const joined =
-    shown.length <= 1
-      ? (shown[0] ?? 'a few documents')
-      : `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}`;
-  return rest > 0 ? `${joined}, plus ${rest} more` : joined;
+  const joined = shown.length === 0 ? t(locale, 'list.fallback') : formatList(locale, shown);
+  return rest > 0 ? joined + t(locale, 'list.plus', { restCount: rest }) : joined;
 };
 
-const bullets = (items: string[]): string => items.map((i) => `  •  ${i}`).join('\n');
+/**
+ * A bullet line opens with neutral characters ("  •  "), so in an RTL message it
+ * would take its direction from the item — and a Latin form code would flip the
+ * whole line to the left. A right-to-left mark pins it.
+ */
+const bulletBlock = (locale: LocaleId, items: string[], max?: number): string => {
+  const mark = localeRecord(locale).dir === 'rtl' ? RLM : '';
+  const shown = max === undefined ? items : items.slice(0, max);
+  const lines = shown.map((i) => `${mark}  •  ${i}`);
+  const rest = items.length - shown.length;
+  if (rest > 0) lines.push(mark + t(locale, 'bullet.more', { restCount: rest }));
+  return lines.join('\n');
+};
 
 export function renderEmail(tone: ChaseTone, c: ChaseCopyInput): RenderedMessage {
+  const locale = c.locale ?? DEFAULT_LOCALE;
+  const dict = dictionary(locale);
+  const copy = dict.chase[tone];
   const done = c.totalCount - c.outstandingCount;
-  const sig = c.signature || `${c.preparerName}\n${c.firmName}`;
+  const deadlineAt = new Date();
+  deadlineAt.setDate(deadlineAt.getDate() + c.daysToDeadline);
 
-  switch (tone) {
-    case 'warm':
-      return {
-        subject: `Your ${c.firmName} document checklist is ready`,
-        body: `Hi ${c.clientFirstName},
+  const vars: Vars = {
+    clientFirstName: c.clientFirstName,
+    firmName: c.firmName,
+    preparerName: c.preparerName,
+    portalUrl: c.portalUrl,
+    outstandingCount: c.outstandingCount,
+    totalCount: c.totalCount,
+    doneCount: done,
+    daysWaiting: c.daysWaiting,
+    daysToDeadline: c.daysToDeadline,
+    topList: listTop(locale, c.outstanding),
+    deadlineDate: formatMonthDay(locale, deadlineAt),
+  };
 
-We've built your document checklist for this year's return. It's ${c.totalCount} ${c.totalCount === 1 ? 'item' : 'items'}, drawn from what was on your last return, so there's nothing on it you don't actually need.
+  /**
+   * Paragraphs that are nothing but a slot are substituted raw. They are already
+   * localized, they span line breaks, and a bidi isolate may not cross one — so
+   * wrapping them would emit an unmatched PDI. Everything inline is isolated.
+   */
+  const blocks: Record<string, string> = {
+    bullets: bulletBlock(locale, c.outstanding, tone === 'warm' ? 6 : undefined),
+    lede: t(locale, done > 0 ? 'neutral.ledeSome' : 'neutral.ledeNone', vars),
+    deadline: t(locale, c.daysToDeadline <= 30 ? 'urgent.deadlineNear' : 'urgent.deadlineFar', vars),
+    portalUrl: c.portalUrl,
+    signature: c.signature || `${c.preparerName}\n${c.firmName}`,
+  };
 
-${bullets(c.outstanding.slice(0, 6))}${c.outstanding.length > 6 ? `\n  …and ${c.outstanding.length - 6} more` : ''}
+  const render = (tpl: string): string => {
+    const bare = /^\{(\w+)\}$/.exec(tpl);
+    const block = bare ? blocks[bare[1]!] : undefined;
+    return block ?? interpolate(tpl, vars, locale, dict.plural);
+  };
 
-You can upload straight from your phone — photos are fine, we'll straighten and rename everything.
-
-${c.portalUrl}
-
-${sig}`,
-      };
-
-    case 'neutral':
-      return {
-        subject: `${c.outstandingCount} ${c.outstandingCount === 1 ? 'document' : 'documents'} left for your return`,
-        body: `Hi ${c.clientFirstName},
-
-${done > 0 ? `Thanks — we've got ${done} of ${c.totalCount}. Still waiting on ${c.outstandingCount}:` : `We're still waiting on all ${c.outstandingCount} ${c.outstandingCount === 1 ? 'item' : 'items'}:`}
-
-${bullets(c.outstanding)}
-
-${c.portalUrl}
-
-${sig}`,
-      };
-
-    case 'firm':
-      return {
-        subject: `Still need: ${listTop(c.outstanding, 2)}`,
-        body: `Hi ${c.clientFirstName},
-
-It's been ${c.daysWaiting} days. We can't start your return until these arrive:
-
-${bullets(c.outstanding)}
-
-If something on this list doesn't apply this year, reply and tell us — we'll take it off rather than keep asking.
-
-${c.portalUrl}
-
-${sig}`,
-      };
-
-    case 'urgent':
-      return {
-        subject: `Your return is on hold — ${c.outstandingCount} ${c.outstandingCount === 1 ? 'item' : 'items'} missing`,
-        body: `${c.clientFirstName},
-
-Your return is now the only thing standing between you and being finished, and it's waiting on ${c.outstandingCount} ${c.outstandingCount === 1 ? 'document' : 'documents'}:
-
-${bullets(c.outstanding)}
-
-${c.daysToDeadline <= 30 ? `The filing deadline is ${c.daysToDeadline} days away. Past that we'd need to file an extension, which doesn't extend the deadline to pay.` : `The longer this sits, the more likely we end up filing an extension.`}
-
-Upload here — it takes about two minutes:
-${c.portalUrl}
-
-${sig}`,
-      };
-
-    case 'final':
-      return {
-        subject: `Extension likely — last call for your documents`,
-        body: `${c.clientFirstName},
-
-This is our last automatic reminder. We still don't have:
-
-${bullets(c.outstanding)}
-
-Unless these arrive in the next few days we'll file an extension for you and pick this up afterwards. An extension gives you more time to file, not more time to pay, so any balance due still accrues interest from ${monthDay(c.daysToDeadline)}.
-
-${c.portalUrl}
-
-If there's a reason you're stuck, reply to this email and we'll sort it out directly.
-
-${sig}`,
-      };
-  }
+  return { subject: render(copy.subject), body: copy.body.map(render).join('\n\n') };
 }
 
 export function renderSms(tone: ChaseTone, c: ChaseCopyInput): string {
-  const top = listTop(c.outstanding, 2);
-  switch (tone) {
-    case 'warm':
-    case 'neutral':
-      return `${c.firmName}: hi ${c.clientFirstName}, we still need ${top} for your tax return. Upload in 2 min: ${c.portalUrl} — reply STOP to opt out.`;
-    case 'firm':
-      return `${c.firmName}: ${c.daysWaiting} days waiting on ${top}. Your return can't start without it. ${c.portalUrl} — reply STOP to opt out.`;
-    case 'urgent':
-      return `${c.firmName}: ${c.outstandingCount} docs missing, ${c.daysToDeadline} days to the deadline. ${top}. ${c.portalUrl} — reply STOP to opt out.`;
-    case 'final':
-      return `${c.firmName}: last call — without ${top} we'll file an extension. ${c.portalUrl} — reply STOP to opt out.`;
-  }
-}
-
-function monthDay(daysToDeadline: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + daysToDeadline);
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const locale = c.locale ?? DEFAULT_LOCALE;
+  const dict = dictionary(locale);
+  return interpolate(
+    dict.chase[tone].sms,
+    {
+      clientFirstName: c.clientFirstName,
+      firmName: c.firmName,
+      portalUrl: c.portalUrl,
+      outstandingCount: c.outstandingCount,
+      daysWaiting: c.daysWaiting,
+      daysToDeadline: c.daysToDeadline,
+      topList: listTop(locale, c.outstanding),
+    },
+    locale,
+    dict.plural,
+  );
 }
 
 export const TONE_LABEL: Record<ChaseTone, string> = {

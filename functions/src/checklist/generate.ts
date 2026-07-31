@@ -17,9 +17,13 @@ import {
   docType,
   emptyPriorYear,
   generateChecklist as buildChecklist,
+  localeRecord,
   paths,
+  preferLanguage,
+  resolveLepCode,
   type Activity,
   type Client,
+  type ClientLanguage,
   type DocRequest,
   type PriorYearReturn,
   type RequestPriority,
@@ -68,7 +72,8 @@ export async function materialize(
   source: RequestSource,
   priorYear: Client['priorYear'] | undefined,
   prune: boolean,
-): Promise<{ result: MaterializeResult; client: Client }> {
+  language?: ClientLanguage,
+): Promise<{ result: MaterializeResult; client: Client; language: ClientLanguage | null }> {
   const clientRef = db.doc(paths.client(firmId, clientId));
   const requestsRef = db.collection(paths.requests(firmId, clientId));
 
@@ -152,15 +157,24 @@ export async function materialize(
       }
     });
 
-    if (priorYear) {
+    // A detection may never overwrite a human's choice, so the merge runs
+    // against the value read inside this transaction rather than blind-writing.
+    const languagePatch = language ? preferLanguage(client.language, language) : null;
+
+    if (priorYear || languagePatch) {
       const patch: WithFieldValue<Partial<Client>> = {
-        priorYear,
+        ...(priorYear ? { priorYear } : {}),
+        ...(languagePatch ? { language: languagePatch } : {}),
         updatedAt: FieldValue.serverTimestamp(),
       };
       tx.set(clientRef, patch, { merge: true });
     }
 
-    return { result: { created, updated, removed, preserved, total: created + updated + preserved }, client };
+    return {
+      result: { created, updated, removed, preserved, total: created + updated + preserved },
+      client,
+      language: languagePatch,
+    };
   });
 }
 
@@ -195,7 +209,35 @@ export async function generateChecklistForClient(
       }
     : undefined;
 
-  const { result, client } = await materialize(firmId, clientId, items, 'prior_year', priorYear, true);
+  /**
+   * Schedule LEP was in last year's package: the taxpayer already told the IRS
+   * which language to write to them in, so the firm never has to ask. An
+   * election we can't honor is recorded too — the firm gets told rather than
+   * quietly served English.
+   */
+  const elected = prior.lepCode ? resolveLepCode(prior.lepCode) : null;
+  const detected: ClientLanguage | undefined =
+    elected && elected.kind !== 'unknown'
+      ? {
+          locale: elected.locale,
+          source: 'detected',
+          lepCode: elected.code,
+          ...(elected.kind === 'unsupported'
+            ? { unsupported: { code: elected.code, language: elected.language } }
+            : {}),
+          updatedAt: Timestamp.now(),
+        }
+      : undefined;
+
+  const { result, client, language } = await materialize(
+    firmId,
+    clientId,
+    items,
+    'prior_year',
+    priorYear,
+    true,
+    detected,
+  );
 
   await logActivity(firmId, {
     type: 'checklist_generated',
@@ -210,6 +252,27 @@ export async function generateChecklistForClient(
       confidence: prior.confidence,
     },
   });
+
+  if (elected && elected.kind !== 'unknown' && language) {
+    const inUse = localeRecord(language.locale).englishName;
+    await logActivity(firmId, {
+      type: 'language_detected',
+      summary:
+        elected.kind === 'unsupported'
+          ? `${client.displayName} elected ${elected.language} on their ${prior.taxYear} Schedule LEP. TaxFax can't write ${elected.language} yet, so their messages stay in English.`
+          : language.locale === elected.locale
+            ? `${client.displayName} elected ${elected.language} on their ${prior.taxYear} Schedule LEP — their messages will go out in ${elected.language}.`
+            : `${client.displayName} elected ${elected.language} on their ${prior.taxYear} Schedule LEP, but you have them set to ${inUse}. Your setting stands.`,
+      actor,
+      clientId,
+      meta: {
+        lepCode: elected.code,
+        electedLanguage: elected.language,
+        locale: language.locale,
+        supported: elected.kind === 'supported',
+      },
+    });
+  }
 
   return result;
 }
