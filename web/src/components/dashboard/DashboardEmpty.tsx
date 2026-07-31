@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowRight, FileText, ListChecks, Send } from 'lucide-react';
 import { Button } from '@/components/ui';
+import { CardVignette } from '@/components/brand';
 
 const STEPS = [
   { icon: FileText, title: 'Import your clients', body: "Bring in last season's list — a CSV or your prior software export." },
@@ -12,6 +13,7 @@ const STEPS = [
 export function DashboardEmpty({ firmName }: { firmName: string }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-6 py-16 text-center sm:py-24">
+      <CardVignette className="mb-6 text-ink-faint" />
       <p className="label-eyebrow text-ink-faint">{firmName}</p>
       <h1 className="display mt-3 text-4xl text-ink sm:text-5xl">Let's build your season.</h1>
       <p className="mt-4 max-w-md text-pretty text-[15px] leading-relaxed text-ink-muted">

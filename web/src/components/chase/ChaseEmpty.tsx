@@ -1,16 +1,11 @@
-import { Send } from 'lucide-react';
+import { CardVignette } from '@/components/brand';
 
-/** No one is being chased yet — a clean starting line, not an error. */
+/** Nothing filed yet — a clean starting line, not an error. A blank card, ruled and waiting. */
 export function ChaseEmpty() {
   return (
     <div className="grid min-h-[60vh] place-items-center px-6 py-16">
       <div className="rise-in max-w-md text-center">
-        <div className="relative mx-auto mb-7 size-20" aria-hidden>
-          <div className="absolute inset-0 -rotate-6 rounded-full border-2 border-stamp/30" />
-          <div className="absolute inset-0 grid place-items-center text-stamp">
-            <Send className="size-7" strokeWidth={2} />
-          </div>
-        </div>
+        <CardVignette className="mx-auto mb-6 text-ink-faint" />
         <h1 className="display text-4xl text-ink">Nothing to chase — yet.</h1>
         <p className="mt-3 text-pretty text-sm/relaxed text-ink-muted">
           Once a client has an open checklist, the cadence starts on its own: a warm opener, then escalating
