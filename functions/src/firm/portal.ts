@@ -2,6 +2,8 @@ import { onCall } from 'firebase-functions/v2/https';
 import type { WithFieldValue } from 'firebase-admin/firestore';
 import {
   paths,
+  isLocaleId,
+  preferLanguage,
   type Client,
   type DocRequest,
   type DocumentState,
@@ -255,6 +257,43 @@ export const retractDocument = onCall(callableOptions, async (req) => {
     },
     clientId,
     meta: { documentId, requestId: requestId ?? null },
+  });
+
+  return { ok: true };
+});
+
+/**
+ * The taxpayer choosing their own language from the portal.
+ *
+ * It writes with `source: 'taxpayer'` — the highest-ranked source in
+ * `preferLanguage` — so the choice sticks against a later Schedule-LEP
+ * re-detection and, crucially, is honoured by the *next* chase email and SMS.
+ * The whole point is that picking a language on the portal changes the mail the
+ * taxpayer receives, not just the page in front of them.
+ *
+ * The portal cannot write the client document itself — the Firestore rules keep
+ * client writes staff-only — so this callable is the one blessed path. It merges
+ * through the same `preferLanguage` the detector and the staff override use, so
+ * there is a single, consistent rule for who wins.
+ */
+export const setPortalLanguage = onCall(callableOptions, async (req) => {
+  const locale = typeof req.data?.locale === 'string' ? req.data.locale : '';
+  if (!isLocaleId(locale)) throw invalid('That is not a language we can write in.');
+
+  const portal = portalClaim(req.auth?.token ?? ({} as never));
+  if (!portal) throw denied('Open the secure link we emailed you.');
+  const { firmId, clientId } = portal;
+  requirePortal(req, firmId, clientId);
+
+  const clientRef = db.doc(paths.client(firmId, clientId));
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(clientRef);
+    if (!snap.exists) throw notFound('That client no longer exists.');
+    const client = snap.data() as Client;
+    const next = preferLanguage(client.language, { locale, source: 'taxpayer', updatedAt: new Date() });
+    // A taxpayer source always outranks what is on file, so `next` is never null
+    // here; the guard keeps the type honest and a double-tap idempotent.
+    if (next) tx.update(clientRef, { language: next, updatedAt: FieldValue.serverTimestamp() });
   });
 
   return { ok: true };

@@ -546,7 +546,7 @@ export const reclassifyDocument = onCall(callableOptions, async (req) => {
   const issuerOverride = optionalStr(data.issuer, 60);
 
   const caller = requireFirmRole(req, firmId, 'preparer');
-  if (!DOC_TYPE_BY_ID[docTypeId]) throw invalid('That document type is not one we recognise.');
+  if (!DOC_TYPE_BY_ID[docTypeId]) throw invalid('That document type is not one we recognize.');
 
   const docRef = db.doc(paths.document(firmId, clientId, documentId));
   const snap = await docRef.get();
