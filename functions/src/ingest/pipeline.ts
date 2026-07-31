@@ -30,6 +30,7 @@ import {
   isAcceptedUpload,
   parseDocumentPath,
   paths,
+  requestSatisfied,
   type Classification,
   type DocumentState,
   type RequestStatus,
@@ -393,6 +394,57 @@ async function markReceived(ref: FirebaseFirestore.DocumentReference, documentId
   });
 }
 
+/**
+ * Can this line honestly be called `accepted`? Only when the documents in hand
+ * meet what was asked for — the same test the taxpayer's portal applies through
+ * `requestSatisfied`, so the status the server writes and the progress the
+ * portal shows can never say different things about the same row.
+ *
+ * `expectedCount` comes back off a stored document and requests written before
+ * the field existed don't carry one, so anything that isn't a number counts as
+ * a single document rather than poisoning the comparison.
+ */
+function countMet(documentIds: string[], expectedCount: unknown): boolean {
+  return requestSatisfied({
+    status: 'accepted',
+    documentIds,
+    expectedCount:
+      typeof expectedCount === 'number' && Number.isFinite(expectedCount) ? expectedCount : 1,
+  });
+}
+
+/**
+ * A preparer's sign-off, applied to the line the document was filling.
+ *
+ * The signature is on the *document*; the line only closes when the last one it
+ * asked for is in. Closing it on the first of two W-2s is silent — the roster
+ * reads done, the chase stops, and the return is prepared against income nobody
+ * ever sent — so a line that is still short stays in review instead.
+ */
+async function signOffOnRequest(
+  firmId: string,
+  clientId: string,
+  requestId: string,
+  documentId: string,
+): Promise<void> {
+  const ref = db.doc(paths.request(firmId, clientId, requestId));
+  const snap = await ref.get();
+  if (!snap.exists) return;
+
+  // An earlier rejection pulled this id back out of the line; accepting it now
+  // puts it back, or the count it is measured against could never be met.
+  const documentIds = [...new Set([...((snap.get('documentIds') as string[]) ?? []), documentId])];
+  const done = countMet(documentIds, snap.get('expectedCount'));
+
+  await ref.update({
+    documentIds,
+    status: done ? ('accepted' satisfies RequestStatus) : ('received' satisfies RequestStatus),
+    ...(done ? { acceptedAt: FieldValue.serverTimestamp() } : {}),
+    rejectionReason: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
 // ── Sequence / client helpers ───────────────────────────────────────────────
 
 async function nextSequence(
@@ -593,9 +645,16 @@ async function detachFromRequest(
   if (!snap.exists || snap.get('docTypeId') === newDocTypeId) return;
 
   const remaining = ((snap.get('documentIds') as string[]) ?? []).filter((id) => id !== documentId);
+  const status = snap.get('status') as RequestStatus;
   await ref.update({
     documentIds: FieldValue.arrayRemove(documentId),
-    status: remaining.length === 0 ? ('pending' satisfies RequestStatus) : (snap.get('status') as RequestStatus),
+    // A line that has just lost a document can no longer claim to be complete.
+    status:
+      remaining.length === 0
+        ? ('pending' satisfies RequestStatus)
+        : status === 'accepted' && !countMet(remaining, snap.get('expectedCount'))
+          ? ('received' satisfies RequestStatus)
+          : status,
     updatedAt: FieldValue.serverTimestamp(),
   });
 }
@@ -622,15 +681,7 @@ export const acceptDocument = onCall(callableOptions, async (req) => {
   });
 
   if (doc.requestId) {
-    await db
-      .doc(paths.request(firmId, clientId, doc.requestId))
-      .update({
-        status: 'accepted' satisfies RequestStatus,
-        acceptedAt: FieldValue.serverTimestamp(),
-        rejectionReason: FieldValue.delete(),
-        updatedAt: FieldValue.serverTimestamp(),
-      })
-      .catch(() => undefined);
+    await signOffOnRequest(firmId, clientId, doc.requestId, documentId).catch(() => undefined);
   }
 
   const clientName = await getClientDisplayName(firmId, clientId);
