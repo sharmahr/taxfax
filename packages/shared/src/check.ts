@@ -9,6 +9,7 @@ import { canonicalName, clientToken, documentPath, parseDocumentPath, slugify } 
 import { cadenceCompression, nextSendableSlot, renderEmail, renderSms, stepDueAt } from './chase.ts';
 import { CHASE_PROFILES } from './chase.ts';
 import { DOC_TYPES, docType } from './taxonomy.ts';
+import { requestSatisfied, requestSatisfiedWith, type RequestStatus } from './models.ts';
 import { isE164, isEmail, normEmail, normPhone } from './contact.ts';
 import {
   DESCRIPTOR_DOC_TYPE_IDS,
@@ -16,13 +17,20 @@ import {
   LEP_LANGUAGES,
   LOCALES,
   LOCALE_IDS,
+  REASON_CODES,
+  REASON_KEYS,
   TONES,
   isLocaleId,
   localeRecord,
+  recoverReason,
+  renderReason,
+  requestReason,
+  resolveClientLocale,
   resolveLepCode,
   smsCost,
   t,
   type LocaleId,
+  type ReasonKey,
   type StringKey,
 } from './i18n/index.ts';
 
@@ -537,6 +545,237 @@ Ava Okonkwo · Whitfield & Rowe`,
   }
 }
 
+// ── Reasons ─────────────────────────────────────────────────────────────────
+
+{
+  // The "why we need this" sentence is the most persuasive copy in the product
+  // and the single reason a taxpayer goes and finds the document. It used to be
+  // an English literal frozen into the rule; it is now a key plus the evidence
+  // the rule found, so it can be rebuilt in the reader's language. These checks
+  // exist to keep it that way.
+
+  const evidence = {
+    count: 2,
+    year: '2024',
+    amount: '$45k',
+    issuers: ['Acme Corporation', 'Northwind Logistics LLC'],
+  };
+
+  assert.equal(new Set(REASON_KEYS).size, REASON_KEYS.length, 'reason keys must be unique');
+  assert.deepEqual(
+    [...REASON_KEYS].sort(),
+    (Object.keys(DICTIONARIES.en.reason) as ReasonKey[]).sort(),
+    'REASON_KEYS and the English reason dictionary must be the same set',
+  );
+
+  for (const id of LOCALE_IDS) {
+    const d = DICTIONARIES[id];
+    for (const key of REASON_KEYS) {
+      // A locale missing one reason is a taxpayer reading an English paragraph
+      // inside an otherwise translated page — which is what the fallback would
+      // quietly do, so it has to fail here instead.
+      assert.ok(
+        d.reason[key] && d.reason[key].trim().length > 0,
+        `${id} is missing reason "${key}"`,
+      );
+    }
+  }
+
+  // Slot parity, same rule as `s`: a translator may not drop or invent one.
+  const slotsOf = (s: string) =>
+    new Set(Array.from(s.matchAll(/\{(\w+)(?:#\w+)?\}/g), (m) => m[1]));
+  for (const key of REASON_KEYS) {
+    const want = slotsOf(DICTIONARIES.en.reason[key]);
+    for (const id of LOCALE_IDS) {
+      assert.deepEqual(
+        slotsOf(DICTIONARIES[id].reason[key]),
+        want,
+        `${id}.reason["${key}"] slot set must match English`,
+      );
+    }
+    // Every slot a template asks for must be one the rules can actually supply.
+    for (const slot of want) {
+      assert.ok(
+        ['count', 'year', 'amount', 'issuers', 'code', 'code2', 'codes'].includes(slot),
+        `reason "${key}" wants an unknown slot "{${slot}}"`,
+      );
+    }
+  }
+
+  for (const id of LOCALE_IDS) {
+    const rtl = localeRecord(id).dir === 'rtl';
+    for (const key of REASON_KEYS) {
+      const line = renderReason(id, { key, vars: evidence }, DICTIONARIES[id]);
+
+      assert.ok(!/\{\w+(#\w+)?\}/.test(line), `${id}.reason["${key}"] left a slot unrendered`);
+      assert.ok(
+        !/\bundefined\b|\bNaN\b/.test(line),
+        `${id}.reason["${key}"] rendered a hole`,
+      );
+
+      // IRS identifiers are never translated: "1099-DIV" is what is printed on
+      // the paper the taxpayer is hunting for in a drawer. Only the plain-
+      // language descriptor around it changes language.
+      for (const code of Object.values(REASON_CODES[key] ?? {})) {
+        assert.ok(
+          line.includes(code),
+          `${id}.reason["${key}"]: the IRS identifier "${code}" must survive translation untouched`,
+        );
+        // …and in an RTL sentence a code carrying Latin letters must be
+        // bidi-isolated, or the clauses around it render in the wrong order.
+        // Same FSI/PDI mechanism as firm names and phone numbers, never a
+        // second one. A digits-only identifier ("1099") is bidi-neutral and is
+        // deliberately left bare — wrapping it would be noise, not safety.
+        const needsIsolate = /[A-Za-z]/.test(code);
+        assert.equal(
+          line.includes(`\u2068${code}\u2069`),
+          rtl && needsIsolate,
+          `${id}.reason["${key}"]: "${code}" must be isolated in RTL and left alone elsewhere`,
+        );
+      }
+
+      if (slotsOf(DICTIONARIES.en.reason[key]).has('issuers')) {
+        assert.ok(
+          line.includes('Acme Corporation'),
+          `${id}.reason["${key}"]: an issuer's legal name must never be translated`,
+        );
+        assert.equal(
+          line.includes('\u2068Acme Corporation\u2069'),
+          rtl,
+          `${id}.reason["${key}"]: an issuer name must be isolated in RTL only`,
+        );
+      }
+    }
+  }
+
+  // Reasons already written to Firestore are plain English sentences with no
+  // key. They are recovered by matching them back against the very English
+  // template that produced them, so a taxpayer reading in Arabic today sees
+  // Arabic without anything being rewritten in place. If a template and its
+  // recogniser ever drift, this is where it surfaces.
+  for (const key of REASON_KEYS) {
+    const english = renderReason('en', { key, vars: evidence }, DICTIONARIES.en);
+    const back = recoverReason(english);
+    assert.equal(back?.key, key, `"${key}" must be recoverable from its own English rendering`);
+    assert.equal(
+      renderReason('en', { key: back!.key, vars: back!.vars }, DICTIONARIES.en),
+      english,
+      `"${key}" must round-trip through recovery without losing its evidence`,
+    );
+  }
+
+  // The resolution order a legacy request goes through, end to end.
+  const legacyW2 = { reason: renderReason('en', { key: 'reason.w2Wages', vars: evidence }, DICTIONARIES.en) };
+  assert.equal(
+    requestReason('ar', legacyW2, DICTIONARIES.ar),
+    renderReason('ar', { key: 'reason.w2Wages', vars: evidence }, DICTIONARIES.ar),
+    'a persisted English reason must render in Arabic with no migration',
+  );
+  assert.equal(
+    requestReason('ar', { reasonKey: 'reason.closing', reason: 'stale English' }, DICTIONARIES.ar),
+    DICTIONARIES.ar.reason['reason.closing'],
+    'an explicit key must outrank whatever English is stored beside it',
+  );
+  assert.equal(
+    requestReason('ar', { reason: 'Bring the blue folder from your desk.' }, DICTIONARIES.ar),
+    'Bring the blue folder from your desk.',
+    'a sentence a preparer typed has no key and must survive verbatim',
+  );
+  assert.equal(requestReason('ar', {}, DICTIONARIES.ar), '', 'no reason at all must render nothing');
+
+  // Every rule the engine can fire must land on a key that exists.
+  const hits = generateChecklist({ prior: emptyPriorYear(2024), taxYear: 2025 });
+  for (const hit of hits) {
+    assert.ok(REASON_KEYS.includes(hit.reasonKey), `rule for ${hit.docTypeId} used an unknown reason key`);
+    assert.equal(
+      hit.reason,
+      renderReason('en', { key: hit.reasonKey, vars: hit.reasonVars }, DICTIONARIES.en),
+      `${hit.docTypeId}: the English reason must be exactly what the key renders`,
+    );
+  }
+  for (const s of STARTER_CHECKLIST) {
+    assert.ok(REASON_KEYS.includes(s.reasonKey), `starter ${s.docTypeId} used an unknown reason key`);
+  }
+}
+
+// ── Language resolution ─────────────────────────────────────────────────────
+
+{
+  // The portal resolves override → client language → browser → English. That
+  // third step is only reachable if "we know nothing" is distinguishable from
+  // "English", which is exactly what the total `effectiveLocale` cannot say.
+  assert.equal(resolveClientLocale(undefined), null, 'no client language must not claim English');
+  assert.equal(resolveClientLocale(null), null, 'a missing client language must not claim English');
+  assert.equal(
+    resolveClientLocale({ locale: 'nope' as LocaleId, source: 'detected' }),
+    null,
+    'an unreadable locale is not a signal',
+  );
+  assert.equal(
+    resolveClientLocale({ locale: 'ar', source: 'detected' }),
+    'ar',
+    'a known client language wins',
+  );
+  assert.equal(
+    resolveClientLocale(undefined, false),
+    'en',
+    'a firm that opted out gets English, not the browser',
+  );
+  assert.equal(
+    resolveClientLocale({ locale: 'ar', source: 'taxpayer' }, false),
+    'en',
+    'opting out overrides even a taxpayer choice',
+  );
+}
+
+// ── "Done" means done ───────────────────────────────────────────────────────
+
+{
+  // A request for two W-2s that has one W-2 is not finished, whatever its
+  // status says. The server flips the request to `accepted` on the *first*
+  // document it accepts, so if this predicate trusts the status the portal
+  // files "1 of 2 uploaded" under DONE and a firm files a return missing a W-2.
+  const req = (status: RequestStatus, have: number, want: number) => ({
+    status,
+    documentIds: Array.from({ length: have }, (_, i) => `d${i}`),
+    expectedCount: want,
+  });
+
+  assert.equal(requestSatisfied(req('accepted', 1, 2)), false, '1 of 2 accepted is not done');
+  assert.equal(requestSatisfied(req('received', 1, 2)), false, '1 of 2 received is not done');
+  assert.equal(requestSatisfied(req('accepted', 2, 2)), true, '2 of 2 accepted is done');
+  assert.equal(requestSatisfied(req('accepted', 3, 2)), true, 'more than asked is still done');
+  assert.equal(requestSatisfied(req('pending', 5, 2)), false, 'pending is never done');
+  assert.equal(requestSatisfied(req('rejected', 2, 2)), false, 'rejected is never done');
+  // A row that expects nothing still needs something to arrive.
+  assert.equal(requestSatisfied(req('accepted', 0, 0)), false, 'zero of zero is not done');
+  assert.equal(requestSatisfied(req('accepted', 1, 0)), true, 'one against no target is done');
+  // A caller that can see uploads the request has not recorded yet.
+  assert.equal(requestSatisfiedWith(req('accepted', 1, 2), 2), true, 'in-flight copies count');
+
+  // The portal splits the checklist with `list.filter(requestSatisfied)`, and
+  // `filter` hands its callback the *index* as a second argument. A predicate
+  // with an optional second parameter therefore answers a different question on
+  // every row — which put "1 of 2 uploaded" back under DONE while leaving it
+  // under STILL NEEDED as well. Exercise it exactly the way the portal does.
+  const board = [
+    { id: 'engagement', ...req('accepted', 1, 1) },
+    { id: 'photo-id', ...req('accepted', 1, 2) },
+    { id: 'w2', ...req('accepted', 1, 2) },
+    { id: '1099-int', ...req('accepted', 1, 1) },
+    { id: 'closing', ...req('pending', 0, 1) },
+  ];
+  assert.deepEqual(
+    board.filter(requestSatisfied).map((r) => r.id),
+    ['engagement', '1099-int'],
+    'the predicate must survive being passed straight to Array#filter',
+  );
+  assert.deepEqual(
+    board.filter((r) => !requestSatisfied(r)).map((r) => r.id),
+    ['photo-id', 'w2', 'closing'],
+    'and the two halves must be exact complements — no row in both, none in neither',
+  );
+}
 
 // ── Addresses and numbers that leave the building ───────────────────────────
 

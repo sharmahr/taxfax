@@ -134,6 +134,122 @@ export const ko: Dictionary = {
     'status.accepted': '확인 완료',
     'status.rejected': '다시 올려 주세요',
     'status.waived': '해당 없음',
+    'portal.done': '완료 · {doneCount}',
+    'portal.uploadedCount': '{expectedCount}건 중 {uploadedCount}건 업로드',
+    'portal.private': '비공개',
+    'portal.needsAnotherTry': '다시 보내 주세요: {detail}',
+    'portal.yourAccountant': '담당 회계사',
+    'portal.somethingElseHint':
+      '목록에 없는 서류가 있으신가요? 여기에 올려 주시면 {firmName}에서 정리해 드립니다.',
+
+    'upload.percent': '{percent}%',
+    'upload.tryAgain': '다시 시도',
+    'upload.remove': '삭제',
+    'upload.cancel': '취소',
+    'upload.chooseFiles': '내 파일에서 고르기',
+    'upload.dropPrompt': '사진이나 {format} 파일을 여기로 끌어 놓으시거나,',
+    'upload.chooseFile': '파일 선택',
+    'upload.unsupported': '지원하지 않는 형식입니다. 사진을 찍으시거나 {format} 파일을 올려 주세요.',
+    'upload.empty': '빈 파일로 보입니다. 다른 파일로 시도해 주세요.',
+    'upload.tooLarge': '파일이 너무 큽니다. 최대 {limit}까지 가능합니다.',
+    'upload.photoTooLarge': '사진이 너무 큽니다. 최대 {limit}까지 가능합니다.',
+    'upload.heicUnreadable':
+      '이 기기에서는 사진을 읽지 못했습니다. 다시 찍으시거나 {format} 파일로 올려 주세요.',
+    'upload.heicFailed': '사진을 처리하지 못했습니다. {format} 파일로 보내 주세요.',
+  },
+  reason: {
+    'reason.engagement': '업무를 시작하기 전에 반드시 필요합니다.',
+    'reason.photoId': '전자신고 때 본인 확인에 필요합니다.',
+    'reason.photoIdBoth': '전자신고를 하려면 부부 두 분 모두 유효한 사진 신분증이 필요합니다.',
+    'reason.ipPin':
+      '{year}년 신고서에 IRS 신원보호 PIN을 사용하셨습니다. IRS는 매년 12월에 새 번호를 발급합니다.',
+    'reason.priorReturn':
+      '작년 신고서 전체를 보내 주시면 나머지 목록은 저희가 자동으로 채웁니다.',
+
+    'reason.w2Issuers': '작년에 {issuers}에서 받으신 {code}이 {count}장 있었습니다.',
+    'reason.w2IssuersMany': '작년에 {issuers}에서 받으신 {code}이 {count}장 있었습니다.',
+    'reason.w2Wages': '{year}년 신고서에 급여 {amount}이 보고되었습니다.',
+    'reason.w2Each': '고용주마다 한 장씩 필요합니다.',
+
+    'reason.interestIssuers': '작년에 {issuers}에서 이자를 받으셨습니다.',
+    'reason.interestAmount': '{year}년 신고서에 이자소득 {amount}이 보고되었습니다.',
+    'reason.dividendsIssuers': '작년에 {issuers}에서 배당을 받으셨습니다.',
+    'reason.dividendsAmount': '{year}년 신고서에 배당소득 {amount}이 보고되었습니다.',
+    'reason.brokerIssuers':
+      '작년에 {code}을 제출하셨고 {issuers}에 거래가 있었습니다. 취득원가 페이지를 포함한 통합 명세서 전부가 필요합니다.',
+    'reason.brokerSchedule':
+      '작년에 {code}을 제출하셨으므로 증권사의 통합 {code2}이 필요합니다. 취득원가 내역도 함께 보내 주세요.',
+
+    'reason.retirement':
+      '{year}년 신고서에 IRA·연금·연금보험에서 나온 {amount}이 보고되었습니다.',
+    'reason.socialSecurity': '작년에 사회보장 급여 {amount}을 신고하셨습니다.',
+    'reason.unemployment': '작년에 실업급여 또는 주 세금 환급이 신고되었습니다.',
+
+    'reason.scheduleCMany':
+      '작년에 {code}을 {count}장 제출하셨습니다. 사업체마다 손익계산서가 한 장씩 필요합니다.',
+    'reason.scheduleCIncome':
+      '작년에 사업 순소득 {amount}으로 {code}을 제출하셨습니다. 연간 손익계산서가 가장 빠른 방법입니다.',
+    'reason.scheduleC': '작년에 {code}을 제출하셨습니다. 연간 손익계산서가 가장 빠른 방법입니다.',
+    'reason.necIssuers': '작년에 {issuers}에서 {code}을 받으셨습니다.',
+    'reason.necSelfEmployed': '작년에 자영업 소득을 신고하셨습니다. 받으시는 {code}을 모두 보내 주세요.',
+    'reason.paymentAppIssuers':
+      '작년에 {issuers}에서 {code}을 받으셨습니다. 보고 기준액이 계속 낮아지고 있어 올해도 나올 가능성이 큽니다.',
+    'reason.paymentApp':
+      '작년에 {code}을 받으셨습니다. 보고 기준액이 계속 낮아지고 있어 올해도 나올 가능성이 큽니다.',
+    'reason.mileage':
+      '작년에 차량 비용을 공제하셨습니다. IRS는 그때그때 적은 주행 기록을 요구하므로 기록장이나 앱에서 내려받은 파일을 보내 주세요.',
+    'reason.homeOffice':
+      '작년에 재택 사무실을 공제하셨습니다. 올해 면적과 함께 공과금, 임차료 또는 주택담보대출 이자, 보험료가 필요합니다.',
+    'reason.assets':
+      '사업체가 $2,500 넘게 구입한 것은 모두 청구서를 보내 주세요. 장비, 차량, 시설 개선 등입니다.',
+    'reason.payroll': '연말 급여 보고서({codes})로 신고서의 급여를 대조합니다.',
+    'reason.bankStatements':
+      '작년에 사업 소득은 있었지만 장부 파일이 없습니다. 12개월치 거래내역서를 주시면 손익계산서를 저희가 만들어 드립니다.',
+
+    'reason.k1PartnershipIssuers':
+      '{issuers}의 지분을 보유하고 계십니다. 파트너십 {code}은 늦게 오는 일이 잦으니 받는 대로 보내 주세요.',
+    'reason.k1Partnership': '작년에 파트너십 {code}을 {count}장 받으셨습니다.',
+    'reason.k1PartnershipMany': '작년에 파트너십 {code}을 {count}장 받으셨습니다.',
+    'reason.k1SCorpIssuers': '{issuers}의 주주이십니다.',
+    'reason.k1SCorp': '작년에 S 법인 {code}을 {count}장 받으셨습니다.',
+    'reason.k1SCorpMany': '작년에 S 법인 {code}을 {count}장 받으셨습니다.',
+    'reason.k1Trust': '작년에 신탁 또는 상속재산의 수익자이셨습니다.',
+
+    'reason.rentalMany':
+      '작년 {code}에 임대 부동산이 {count}건 나와 있습니다. 각 물건의 수입과 지출을 보내 주세요.',
+    'reason.rentalOne':
+      '작년에 {code}을 제출하셨습니다. 그 물건의 연간 임대 수입과 지출을 보내 주세요.',
+    'reason.mortgageIssuers': '작년에 {issuers}에 주택담보대출 이자를 내셨습니다.',
+    'reason.mortgage': '작년에 주택담보대출 이자를 공제하셨습니다.',
+    'reason.propertyTax': '작년에 재산세를 공제하셨습니다.',
+    'reason.closing': '올해 부동산을 사거나 팔거나 대출을 갈아타신 경우에만 필요합니다.',
+
+    'reason.charitableGave':
+      '작년에 항목별 공제를 하시면서 {amount}을 기부하셨습니다. $250이 넘는 기부는 단체가 발급한 서면 확인서가 필요합니다.',
+    'reason.charitable':
+      '작년에 항목별 공제를 하셨습니다. $250이 넘는 기부는 단체가 발급한 서면 확인서가 필요합니다.',
+    'reason.medical': '작년에 의료비 {amount}을 공제받으셨습니다.',
+    'reason.studentLoan': '작년에 학자금 대출 이자를 공제하셨습니다.',
+    'reason.education': '작년에 교육 세액공제를 받으셨습니다.',
+    'reason.childcare':
+      '작년에 자녀·부양가족 돌봄 세액공제를 받으셨습니다. 금액만이 아니라 돌봄 제공자의 이름, 주소, 납세자번호가 필요합니다.',
+    'reason.ira': '작년에 IRA 납입금을 공제하셨습니다.',
+    'reason.hsa': '작년에 HSA 때문에 {code} 양식을 제출하셨습니다.',
+    'reason.hsaSpend': '올해 HSA에서 지출하셨다면 필요합니다.',
+    'reason.energy': '작년에 주택 에너지 세액공제를 받으셨습니다.',
+    'reason.educator': '작년에 교원 경비 공제를 받으셨습니다.',
+    'reason.marketplace':
+      '작년에 마켓플레이스 보험에 가입하셨습니다. {code} 양식이 없으면 IRS가 신고서를 그대로 반려합니다.',
+
+    'reason.estimatesTotal':
+      '작년에 추정세를 모두 {amount} 납부하셨습니다. 납부 건마다 정확한 날짜와 금액이 필요합니다.',
+    'reason.estimates':
+      '작년에 추정세를 납부하셨습니다. 납부 건마다 정확한 날짜와 금액이 필요합니다.',
+    'reason.bankInfo': '환급금이 종이 수표가 아니라 계좌로 바로 들어가도록 하기 위해서입니다.',
+    'reason.refundDeposit': '환급금이 계좌로 바로 들어가도록 하기 위해서입니다.',
+
+    'reason.crypto':
+      '작년에 디지털 자산 질문에 "예"라고 답하셨습니다. 거래소와 지갑마다 전체 거래 내역을 내려받아 보내 주세요.',
   },
   docCode: {
     'crypto-report': '가상자산 거래내역',

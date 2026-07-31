@@ -92,31 +92,52 @@ export const en: Dictionary = {
     'portal.title': 'Your documents for {firmName}',
     'portal.progress': '{receivedCount} of {totalCount} received',
     'portal.needed': 'Still needed',
+    'portal.done': 'Done · {doneCount}',
     'portal.upload': 'Upload',
     'portal.uploadHint':
       "A photo from your phone is fine — we straighten and rename everything for you.",
+    'portal.uploadedCount': '{uploadedCount} of {expectedCount} uploaded',
     'portal.allDone': "That's everything. Nothing more to send.",
     'portal.whyAsked': 'Why we need this',
     'portal.help': 'Stuck? Reply to any of our emails and a person will answer.',
     'portal.language': 'Language',
     'portal.languageHint': 'Change the language we write to you in.',
+    'portal.private': 'Private',
+    'portal.needsAnotherTry': 'Needs another try: {detail}',
+    'portal.yourAccountant': 'your accountant',
     'portal.loadFailed': 'We couldn’t load your list',
     'portal.loadFailedHint':
       'Check your connection and reload the page. Nothing you’ve sent is lost.',
     'portal.emptyTitle': 'Nothing needed right now',
     'portal.emptyHint': 'When {firmName} needs a document from you, it will show up here.',
     'portal.somethingElse': 'Something else?',
+    'portal.somethingElseHint':
+      'Have a document that isn’t on the list? Add it here and {firmName} will sort it out.',
 
     'upload.gotItIssuer': 'Got it — {code} from {issuer}.',
     'upload.gotItCode': 'Got it — {code}.',
     'upload.gotItSaved': 'Got it — saved to your file.',
     'upload.preparing': 'Preparing',
+    'upload.percent': '{percent}%',
     'upload.failed': 'That upload didn’t go through.',
     'upload.unreadable': 'We couldn’t read that one. Try a clearer photo.',
     'upload.undo': 'Undo',
     'upload.undoLabel': 'Undo — remove {name}',
     'upload.removing': 'Removing…',
     'upload.removingLabel': 'Removing {name}',
+    'upload.tryAgain': 'Try again',
+    'upload.remove': 'Remove',
+    'upload.cancel': 'Cancel',
+    'upload.chooseFiles': 'Choose from your files',
+    'upload.dropPrompt': 'Drag a photo or {format} here, or',
+    'upload.chooseFile': 'choose a file',
+    'upload.unsupported': 'That kind of file isn’t supported. Take a photo, or upload a {format}.',
+    'upload.empty': 'That file looks empty. Try another.',
+    'upload.tooLarge': 'That file is too large — the limit is {limit}.',
+    'upload.photoTooLarge': 'That photo is too large — the limit is {limit}.',
+    'upload.heicUnreadable':
+      'We couldn’t read that photo on this device. Try taking it again, or upload a {format}.',
+    'upload.heicFailed': 'We couldn’t process that photo. Try a {format} instead.',
 
     'signin.working': 'Signing you in securely…',
     'signin.confirmTitle': 'Confirm your email',
@@ -139,6 +160,101 @@ export const en: Dictionary = {
     'status.accepted': 'Accepted',
     'status.rejected': 'Needs another copy',
     'status.waived': 'Not needed',
+  },
+  reason: {
+    'reason.engagement': 'Required before we can start work.',
+    'reason.photoId': 'Needed to verify your identity when we e-file.',
+    'reason.photoIdBoth': 'Both spouses need a current photo ID to e-file.',
+    'reason.ipPin':
+      'You used an IRS Identity Protection PIN on your {year} return. The IRS issues a new one every December.',
+    'reason.priorReturn':
+      "Send last year's complete return and we'll build the rest of this list from it automatically.",
+
+    'reason.w2Issuers': 'Last year you had {count} {code} — from {issuers}.',
+    'reason.w2IssuersMany': 'Last year you had {count} {code}s — from {issuers}.',
+    'reason.w2Wages': 'Your {year} return reported {amount} of wages.',
+    'reason.w2Each': 'One from each employer.',
+
+    'reason.interestIssuers': 'Interest last year from {issuers}.',
+    'reason.interestAmount': 'Your {year} return reported {amount} of interest income.',
+    'reason.dividendsIssuers': 'Dividends last year from {issuers}.',
+    'reason.dividendsAmount': 'Your {year} return reported {amount} of dividends.',
+    'reason.brokerIssuers':
+      'You filed {code} last year with activity at {issuers}. We need the full consolidated statement, including the cost-basis pages.',
+    'reason.brokerSchedule':
+      "You filed {code} last year, so we need your broker's consolidated {code2} — including the cost-basis detail.",
+
+    'reason.retirement': 'Your {year} return reported {amount} from an IRA, pension, or annuity.',
+    'reason.socialSecurity': 'You reported {amount} of Social Security benefits last year.',
+    'reason.unemployment': 'You had unemployment or a state refund reported last year.',
+
+    'reason.scheduleCMany':
+      'You filed {count} {code}s last year — one profit & loss statement per business.',
+    'reason.scheduleCIncome':
+      'You filed {code} last year with {amount} of net business income. A full-year P&L is the fastest way to get this done.',
+    'reason.scheduleC':
+      'You filed {code} last year. A full-year P&L is the fastest way to get this done.',
+    'reason.necIssuers': 'Last year you received {code}s from {issuers}.',
+    'reason.necSelfEmployed':
+      'You reported self-employment income last year — send any {code}s you receive.',
+    'reason.paymentAppIssuers':
+      'You received a {code} last year from {issuers}. The reporting threshold keeps dropping, so expect one again.',
+    'reason.paymentApp':
+      'You received a {code} last year. The reporting threshold keeps dropping, so expect one again.',
+    'reason.mileage':
+      'You claimed vehicle expenses last year. The IRS requires contemporaneous mileage records, so send your log or app export.',
+    'reason.homeOffice':
+      'You claimed a home office last year — we need this year’s square footage plus utilities, rent or mortgage interest, and insurance.',
+    'reason.assets':
+      'Send invoices for anything the business bought over $2,500 — equipment, vehicles, or improvements.',
+    'reason.payroll': 'Year-end payroll reports ({codes}) reconcile wages on the return.',
+    'reason.bankStatements':
+      'You had business income last year but no bookkeeping file. Twelve months of statements let us build the P&L for you.',
+
+    'reason.k1PartnershipIssuers':
+      'You hold interests in {issuers}. Partnership {code}s often arrive late — send each as it comes.',
+    'reason.k1Partnership': 'You received {count} partnership {code} last year.',
+    'reason.k1PartnershipMany': 'You received {count} partnership {code}s last year.',
+    'reason.k1SCorpIssuers': 'You’re a shareholder in {issuers}.',
+    'reason.k1SCorp': 'You received {count} S-corporation {code} last year.',
+    'reason.k1SCorpMany': 'You received {count} S-corporation {code}s last year.',
+    'reason.k1Trust': 'You were a beneficiary of a trust or estate last year.',
+
+    'reason.rentalMany':
+      '{code} showed {count} rental properties last year — send income and expenses for each.',
+    'reason.rentalOne':
+      'You filed {code} last year. Send full-year rent collected plus expenses for the property.',
+    'reason.mortgageIssuers': 'Mortgage interest last year from {issuers}.',
+    'reason.mortgage': 'You deducted mortgage interest last year.',
+    'reason.propertyTax': 'You deducted real estate taxes last year.',
+    'reason.closing': 'Only if you bought, sold, or refinanced property this year.',
+
+    'reason.charitableGave':
+      'You itemized last year and gave {amount}. Anything over $250 needs a written acknowledgment from the charity.',
+    'reason.charitable':
+      'You itemized last year. Anything over $250 needs a written acknowledgment from the charity.',
+    'reason.medical': 'You claimed {amount} of medical expenses last year.',
+    'reason.studentLoan': 'You deducted student loan interest last year.',
+    'reason.education': 'You claimed an education credit last year.',
+    'reason.childcare':
+      "You claimed the child and dependent care credit last year. We need the provider's name, address, and tax ID — not just the amount.",
+    'reason.ira': 'You deducted an IRA contribution last year.',
+    'reason.hsa': 'You filed Form {code} for an HSA last year.',
+    'reason.hsaSpend': 'Needed if you spent from your HSA this year.',
+    'reason.energy': 'You claimed a home energy credit last year.',
+    'reason.educator': 'You claimed the educator expense deduction last year.',
+    'reason.marketplace':
+      'You had Marketplace coverage last year. Without Form {code} the IRS rejects the return outright.',
+
+    'reason.estimatesTotal':
+      'You made estimated payments last year totaling {amount}. We need the exact date and amount of each one.',
+    'reason.estimates':
+      'You made estimated payments last year. We need the exact date and amount of each one.',
+    'reason.bankInfo': 'So any refund reaches you by direct deposit instead of a paper check.',
+    'reason.refundDeposit': 'So a refund reaches you by direct deposit.',
+
+    'reason.crypto':
+      'You answered yes to the digital-asset question last year. Send a full transaction export from every exchange and wallet.',
   },
   docCode: {
     'crypto-report': 'Crypto',

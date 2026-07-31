@@ -140,6 +140,19 @@ export function parseDocumentPath(path: string): {
 
 export const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 
+/**
+ * What the pipeline can actually read.
+ *
+ * Everything here reaches OCR and comes back classified. Nothing else does — a
+ * spreadsheet or a Word file is stored, counted, and then sits forever as an
+ * unclassifiable blob while the portal reports the item complete. Accepting a
+ * file we can never read is worse than refusing it, because the taxpayer walks
+ * away believing they are finished. `prepareUpload.ts` records the same
+ * conclusion for HEIC.
+ *
+ * This is also the single source for the `accept` attribute on the file input,
+ * so what the picker offers and what the server admits cannot drift apart.
+ */
 export const ACCEPTED_UPLOAD_TYPES = [
   'application/pdf',
   'image/jpeg',
@@ -148,12 +161,19 @@ export const ACCEPTED_UPLOAD_TYPES = [
   'image/heif',
   'image/webp',
   'image/tiff',
-  'text/csv',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
+
+/**
+ * The `accept` attribute for a file input, derived from the list above.
+ *
+ * `image/*` rather than the individual image types: iOS and Android hand back
+ * camera formats we normalise on the client, and the wildcard is what makes the
+ * photo library open instead of a file browser.
+ */
+export const UPLOAD_ACCEPT_ATTR = [
+  'image/*',
+  ...ACCEPTED_UPLOAD_TYPES.filter((t) => !t.startsWith('image/')),
+].join(',');
 
 export function isAcceptedUpload(contentType: string): boolean {
   return ACCEPTED_UPLOAD_TYPES.includes(contentType);

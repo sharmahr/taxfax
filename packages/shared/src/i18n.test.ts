@@ -20,11 +20,13 @@ import {
   LOCALES,
   LOCALE_IDS,
   PDI,
+  REASON_KEYS,
   RLM,
   TONES,
   directionOf,
   docCodeLabel,
   formatList,
+  formatNames,
   isLocaleId,
   isolate,
   localeRecord,
@@ -33,12 +35,17 @@ import {
   preferLanguage,
   effectiveLocale,
   multilingualEnabled,
+  recoverReason,
+  renderReason,
+  requestReason,
+  resolveClientLocale,
   resolveLepCode,
   smsCost,
   stripBidi,
   t,
   type ClientLanguage,
   type LocaleId,
+  type ReasonKey,
 } from './i18n/index.ts';
 
 /** One realistic client, used everywhere so numbers are comparable. */
@@ -298,6 +305,36 @@ describe('language precedence', () => {
     assert.equal(effectiveLocale(undefined), 'en');
     assert.equal(effectiveLocale({ locale: 'xx' as LocaleId, source: 'preparer' }), 'en');
   });
+
+  it('says "I do not know" so the browser can be asked', () => {
+    // `effectiveLocale` is total — it answers 'en' whether we detected English
+    // or detected nothing at all. The portal resolves override → client →
+    // browser → English, and that browser step is unreachable unless those two
+    // cases are distinguishable. They are only distinguishable here.
+    assert.equal(resolveClientLocale(undefined), null);
+    assert.equal(resolveClientLocale(null), null);
+    assert.equal(resolveClientLocale({ locale: 'xx' as LocaleId, source: 'detected' }), null);
+
+    // A real signal is still a real signal, including a detected English one.
+    assert.equal(resolveClientLocale({ locale: 'en', source: 'detected' }), 'en');
+    assert.equal(resolveClientLocale({ locale: 'ar', source: 'detected' }), 'ar');
+
+    // A firm that switched multilingual off is a decision, not an absence: it
+    // must pin English rather than fall through to whatever the browser wants.
+    assert.equal(resolveClientLocale(undefined, false), 'en');
+    assert.equal(resolveClientLocale({ locale: 'ar', source: 'taxpayer' }, false), 'en');
+
+    // And it must not have changed what the total function answers.
+    for (const language of [undefined, { locale: 'ar', source: 'taxpayer' } as ClientLanguage]) {
+      for (const enabled of [true, false]) {
+        assert.equal(
+          effectiveLocale(language, enabled),
+          resolveClientLocale(language, enabled) ?? 'en',
+          `${language?.locale ?? 'none'}/${enabled}`,
+        );
+      }
+    }
+  });
 });
 
 // ── RTL and bidi ─────────────────────────────────────────────────────────────
@@ -386,6 +423,22 @@ describe('formatting', () => {
     assert.ok(formatList('es', ['W-2', '1099-DIV']).includes(' y '));
     assert.ok(formatList('ru', ['W-2', '1099-DIV']).includes(' и '));
     assert.equal(formatList('ja' as LocaleId, ['a', 'b']), 'a and b'); // unknown → English
+  });
+
+  it('isolates each name in a list, not the list', () => {
+    const payers = ['Acme Corporation', 'Northwind Logistics LLC'];
+    const joined = formatNames('ar', payers);
+
+    // Each payer is its own left-to-right island…
+    assert.equal(joined, `${FSI}Acme Corporation${PDI} و${FSI}Northwind Logistics LLC${PDI}`);
+    // …and the Arabic conjunction stays outside them, so the list itself still
+    // reads right-to-left. Isolating the finished string instead would hand the
+    // whole run to the LTR algorithm and put the wrong payer first.
+    assert.ok(!joined.startsWith(FSI + FSI));
+    assert.equal(isolate(joined, 'rtl'), joined);
+
+    // Nothing changes in an LTR locale.
+    assert.equal(formatNames('en', payers), 'Acme Corporation and Northwind Logistics LLC');
   });
 
   it('translates plain-English document descriptors but never an IRS form code', () => {
@@ -491,5 +544,112 @@ describe('post-upload recognition line', () => {
         assert.deepEqual(slots(DICTIONARIES[id].s[key]), slots(DICTIONARIES.en.s[key]), `${id}.${key}`);
       }
     }
+  });
+});
+
+// ── The sentence that earns compliance ───────────────────────────────────────
+
+/**
+ * The "why we need this" line is the reason a taxpayer gets up and goes and
+ * looks in the drawer. It used to be an English literal frozen into the rule at
+ * generation time, which made the most persuasive copy in the product the one
+ * piece of it that could not be translated. It is now a key plus the evidence
+ * the rule actually found, rebuilt in the reader's language at display time.
+ */
+describe('why we need this', () => {
+  const evidence = {
+    count: 2,
+    year: '2024',
+    amount: '$45k',
+    issuers: ['Acme Corporation', 'Northwind Logistics LLC'],
+  };
+  const render = (id: LocaleId, key: ReasonKey) =>
+    renderReason(id, { key, vars: evidence }, DICTIONARIES[id]);
+
+  it('has every reason in every language', () => {
+    for (const id of LOCALE_IDS) {
+      for (const key of REASON_KEYS) {
+        const text = DICTIONARIES[id].reason[key];
+        // A hole here does not throw — it silently falls back to English, so a
+        // taxpayer reading Arabic gets one English paragraph in the middle of a
+        // translated page. That is the failure this test exists to prevent.
+        assert.ok(text && text.trim().length > 0, `${id} is missing "${key}"`);
+        if (id !== 'en') {
+          assert.notEqual(text, DICTIONARIES.en.reason[key], `${id}."${key}" is still English`);
+        }
+      }
+    }
+  });
+
+  it('never translates an IRS identifier', () => {
+    // "1099-DIV" is what is printed on the paper the taxpayer is hunting for.
+    // Only the plain-language descriptor around it changes language.
+    for (const id of LOCALE_IDS) {
+      assert.ok(render(id, 'reason.w2Issuers').includes('W-2'), id);
+      assert.ok(render(id, 'reason.marketplace').includes('1095-A'), id);
+      assert.ok(render(id, 'reason.scheduleC').includes('Schedule C'), id);
+      assert.ok(render(id, 'reason.payroll').includes('W-3, 940, 941'), id);
+      // Nor a payer's legal name.
+      assert.ok(render(id, 'reason.w2Issuers').includes('Acme Corporation'), id);
+    }
+  });
+
+  it('isolates the Latin runs in Arabic, and only in Arabic', () => {
+    const ar = render('ar', 'reason.w2Issuers');
+    assert.ok(ar.includes(FSI + 'W-2' + PDI), ar);
+    assert.ok(ar.includes(FSI + 'Acme Corporation' + PDI), ar);
+    assert.ok(ar.includes(FSI + 'Northwind Logistics LLC' + PDI), ar);
+    // The conjunction between two payers belongs to Arabic, not to the isolate.
+    assert.ok(!ar.includes(`Acme Corporation${PDI}${FSI} و`), ar);
+
+    for (const id of LOCALE_IDS) {
+      if (localeRecord(id).dir === 'rtl') continue;
+      const line = render(id, 'reason.w2Issuers');
+      assert.equal(stripBidi(line), line, `${id} is LTR and needs no bidi controls`);
+    }
+  });
+
+  it('renders every reason in every language without a hole', () => {
+    for (const id of LOCALE_IDS) {
+      for (const key of REASON_KEYS) {
+        const line = render(id, key);
+        assert.ok(!/\{\w+(#\w+)?\}/.test(line), `${id}."${key}" left a slot unrendered: ${line}`);
+        assert.ok(!/\bundefined\b|\bNaN\b/.test(line), `${id}."${key}" rendered a hole: ${line}`);
+      }
+    }
+  });
+
+  it('reads a reason already written to Firestore back into a key', () => {
+    // Nothing is rewritten in place: every persisted reason came from one of
+    // these same English templates, so it is matched back against the template
+    // that produced it and re-rendered in the reader's language.
+    for (const key of REASON_KEYS) {
+      const english = render('en', key);
+      const back = recoverReason(english);
+      assert.equal(back?.key, key, `"${key}" is not recoverable from its own English`);
+      assert.equal(
+        renderReason('en', { key: back!.key, vars: back!.vars }, DICTIONARIES.en),
+        english,
+        `"${key}" lost evidence on the way back`,
+      );
+    }
+  });
+
+  it('prefers the stored key, falls back to the English, and never invents one', () => {
+    const legacy = { reason: render('en', 'reason.w2Wages') };
+    assert.equal(requestReason('ar', legacy, DICTIONARIES.ar), render('ar', 'reason.w2Wages'));
+
+    assert.equal(
+      requestReason('ar', { reasonKey: 'reason.closing', reason: 'stale English' }, DICTIONARIES.ar),
+      DICTIONARIES.ar.reason['reason.closing'],
+      'an explicit key outranks whatever English is stored beside it',
+    );
+
+    // A preparer typed this by hand. There is no key and nothing to translate,
+    // so it must survive exactly as written rather than be guessed at.
+    const freeText = 'Bring the blue folder from your desk.';
+    assert.equal(requestReason('ar', { reason: freeText }, DICTIONARIES.ar), freeText);
+    assert.equal(recoverReason(freeText), null);
+    assert.equal(requestReason('ar', {}, DICTIONARIES.ar), '');
   });
 });

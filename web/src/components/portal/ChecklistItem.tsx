@@ -11,10 +11,16 @@ import {
 import {
   docType,
   docCodeLabel,
-  formatList,
+  formatNames,
+  isolate,
+  localeRecord,
+  requestSatisfiedWith,
   type DocRequest,
+  type LocaleId,
   type RequestStatus,
   type StoredDocument,
+  type StringKey,
+  type Vars,
 } from '@taxfax/shared';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
@@ -66,17 +72,27 @@ interface UndoProps {
  * light as taking it — treat it as dangerous and the taxpayer phones the firm,
  * which is the friction this whole product removes.
  */
-function UndoButton({ busy, label, onClick }: { busy: boolean; label: string; onClick: () => void }) {
+function UndoButton({
+  busy,
+  label,
+  onClick,
+  t,
+}: {
+  busy: boolean;
+  label: string;
+  onClick: () => void;
+  t: (key: StringKey, vars?: Vars) => string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={busy}
-      aria-label={busy ? `Removing ${label}` : `Undo — remove ${label}`}
+      aria-label={busy ? t('upload.removingLabel', { name: label }) : t('upload.undoLabel', { name: label })}
       className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-60"
     >
       <RotateCcw className="size-3" aria-hidden />
-      {busy ? 'Removing…' : 'Undo'}
+      {busy ? t('upload.removing') : t('upload.undo')}
     </button>
   );
 }
@@ -90,12 +106,22 @@ const REQUEST_TONE: Record<RequestStatus, StatusTone> = {
   waived: 'neutral',
 };
 
-function recognizedText(doc: StoredDocument): string {
+/**
+ * The first thing the product says *back* to a taxpayer. The IRS form code stays
+ * Latin — `1099-DIV` is what is printed on the paper they are hunting for in a
+ * drawer — while the sentence around it, and the issuer's legal name, are handed
+ * to `t()` so the Latin runs get bidi-isolated in an RTL locale.
+ */
+function recognizedText(
+  doc: StoredDocument,
+  locale: LocaleId,
+  t: (key: StringKey, vars?: Vars) => string,
+): string {
   const id = doc.classification?.docTypeId ?? 'other';
-  if (id === 'other') return 'Got it — saved to your file.';
-  const code = docType(id).code;
+  if (id === 'other') return t('upload.gotItSaved');
+  const code = docCodeLabel(locale, id, docType(id).code);
   const issuer = doc.classification?.issuer;
-  return issuer ? `Got it — ${code} from ${issuer}.` : `Got it — ${code}.`;
+  return issuer ? t('upload.gotItIssuer', { code, issuer }) : t('upload.gotItCode', { code });
 }
 
 /**
@@ -113,6 +139,18 @@ function recognizedKey(doc: StoredDocument | undefined): string {
   return id && id !== 'other' ? id : 'pending';
 }
 
+/**
+ * A filename for display.
+ *
+ * Filenames are always Latin, and one that opens with digits — `1098_Rocket_
+ * Mortgage_2025.pdf` — is torn in two by the bidi algorithm on an Arabic page
+ * and renders as `Rocket_Mortgage_2025.pdf_1098`. That is the taxpayer's own
+ * file, so it has to read back exactly as they will find it. Same FSI/PDI
+ * isolation the app already gives firm names and form codes.
+ */
+const fileLabel = (name: string, locale: LocaleId): string =>
+  isolate(name, localeRecord(locale).dir);
+
 /** A quietly-confirmed document already on file for this row. */
 export function DocLine({
   doc,
@@ -125,16 +163,22 @@ export function DocLine({
   retracting?: boolean;
   error?: string;
 }) {
+  const { t, locale } = usePortalLocale();
   const undoable = onUndo != null && canRetract(doc);
   return (
     <UploadLine tone="success" icon={<Check className="size-4 text-status-success" aria-hidden />}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-ink">{recognizedText(doc)}</p>
-          <p className="ticket mt-0.5 truncate text-ink-faint">{doc.originalName}</p>
+          <p className="text-sm font-medium text-ink">{recognizedText(doc, locale, t)}</p>
+          <p className="ticket mt-0.5 truncate text-ink-faint">{fileLabel(doc.originalName, locale)}</p>
         </div>
         {undoable ? (
-          <UndoButton busy={!!retracting} label={doc.originalName} onClick={() => onUndo!(doc.id)} />
+          <UndoButton
+            busy={!!retracting}
+            label={doc.originalName}
+            onClick={() => onUndo!(doc.id)}
+            t={t}
+          />
         ) : null}
       </div>
       {error ? (
@@ -221,20 +265,22 @@ export function UploadItemView({
   retractPending,
   retractErrors,
 }: UploadItemViewProps) {
+  const { t, locale } = usePortalLocale();
+
   if (item.status === 'error') {
     return (
       <UploadLine tone="danger" icon={<TriangleAlert className="size-4 text-status-danger" aria-hidden />}>
         <p className="text-sm font-medium text-ink" role="alert">
-          {item.error ?? 'That upload didn’t go through.'}
+          {item.error ?? t('upload.failed')}
         </p>
-        <p className="ticket mt-0.5 truncate text-ink-faint">{item.displayName}</p>
+        <p className="ticket mt-0.5 truncate text-ink-faint">{fileLabel(item.displayName, locale)}</p>
         <div className="mt-2 flex gap-2">
           <Button size="sm" variant="secondary" onClick={() => onRetry(item.id)}>
             <RotateCcw className="size-3.5" aria-hidden />
-            Try again
+            {t('upload.tryAgain')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => onDismiss(item.id)}>
-            Remove
+            {t('upload.remove')}
           </Button>
         </div>
       </UploadLine>
@@ -246,15 +292,15 @@ export function UploadItemView({
       return (
         <UploadLine tone="danger" icon={<TriangleAlert className="size-4 text-status-danger" aria-hidden />}>
           <p className="text-sm font-medium text-ink" role="alert">
-            {recognizedDoc.error ?? 'We couldn’t read that one. Try a clearer photo.'}
+            {recognizedDoc.error ?? t('upload.unreadable')}
           </p>
           <div className="mt-2 flex gap-2">
             <Button size="sm" variant="secondary" onClick={() => onRetry(item.id)}>
               <RotateCcw className="size-3.5" aria-hidden />
-              Try again
+              {t('upload.tryAgain')}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => onDismiss(item.id)}>
-              Remove
+              {t('upload.remove')}
             </Button>
           </div>
         </UploadLine>
@@ -265,14 +311,15 @@ export function UploadItemView({
       return (
         <RecognizedNote
           swapKey={recognizedKey(recognizedDoc)}
-          title={recognizedText(recognizedDoc)}
-          subtitle={recognizedDoc.originalName}
+          title={recognizedText(recognizedDoc, locale, t)}
+          subtitle={fileLabel(recognizedDoc.originalName, locale)}
           action={
             undoable ? (
               <UndoButton
                 busy={retractPending?.has(recognizedDoc.id) ?? false}
                 label={recognizedDoc.originalName}
                 onClick={() => onUndo!(recognizedDoc.id)}
+                t={t}
               />
             ) : undefined
           }
@@ -283,7 +330,13 @@ export function UploadItemView({
     // The bytes are durably saved the moment we reach `processing`. Confirm right
     // away rather than making the taxpayer wait on classification — this note
     // upgrades to the recognized type above as soon as the pipeline reports back.
-    return <RecognizedNote swapKey="pending" title="Got it — saved to your file." subtitle={item.displayName} />;
+    return (
+      <RecognizedNote
+        swapKey="pending"
+        title={t('upload.gotItSaved')}
+        subtitle={fileLabel(item.displayName, locale)}
+      />
+    );
   }
 
   // preparing | uploading
@@ -291,20 +344,20 @@ export function UploadItemView({
   return (
     <UploadLine icon={<FileText className="size-4 text-ink-faint" aria-hidden />}>
       <div className="flex items-center justify-between gap-3">
-        <p className="ticket min-w-0 truncate text-ink">{item.displayName}</p>
+        <p className="ticket min-w-0 truncate text-ink">{fileLabel(item.displayName, locale)}</p>
         <button
           type="button"
           onClick={() => onCancel(item.id)}
           className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
         >
           <X className="size-3" aria-hidden />
-          Cancel
+          {t('upload.cancel')}
         </button>
       </div>
       <div className="mt-2 flex items-center gap-2">
         <Progress value={item.status === 'preparing' ? 6 : pct} className="flex-1" />
         <span className="ticket w-16 shrink-0 text-end text-2xs text-ink-faint">
-          {item.status === 'preparing' ? 'Preparing' : `${pct}%`}
+          {item.status === 'preparing' ? t('upload.preparing') : t('upload.percent', { percent: pct })}
         </span>
       </div>
     </UploadLine>
@@ -340,11 +393,15 @@ export function ChecklistItem({
   retractPending,
   retractErrors,
 }: ChecklistItemProps) {
-  const { t, locale } = usePortalLocale();
+  const { t, locale, reason } = usePortalLocale();
 
-  const accepted = request.status === 'accepted';
-  const rejected = request.status === 'rejected';
   const provided = Math.max(docs.length, request.documentIds.length);
+  // "Accepted" only counts when every copy we asked for is actually here. A
+  // preparer accepting the first of two W-2s must not turn the row green — that
+  // is how a return goes out missing a W-2. Same predicate the Done section
+  // uses, so the badge and the section cannot disagree.
+  const accepted = request.status === 'accepted' && requestSatisfiedWith(request, provided);
+  const rejected = request.status === 'rejected';
   const needsMore = !accepted && provided < request.expectedCount;
   const showUploader = request.status === 'pending' || rejected || needsMore;
 
@@ -364,8 +421,13 @@ export function ChecklistItem({
   const expectedIssuers = request.expectedIssuers ?? [];
   const title =
     expectedIssuers.length > 0
-      ? t('item.fromIssuer', { code: baseLabel, issuers: formatList(locale, expectedIssuers) })
+      ? t('item.fromIssuer', { code: baseLabel, issuers: formatNames(locale, expectedIssuers) })
       : baseLabel;
+
+  // The sentence that earns compliance, rebuilt in the reader's language from
+  // the rule key and the evidence the rule found — not the English the rule
+  // happened to be written in.
+  const reasonText = reason(request);
 
   return (
     <li className="flex flex-col gap-3 py-5 first:pt-0">
@@ -376,15 +438,15 @@ export function ChecklistItem({
             <h3 className="text-[0.9375rem] font-semibold leading-tight text-ink">{title}</h3>
             <StatusPill tone={REQUEST_TONE[request.status]}>{t(`status.${request.status}`)}</StatusPill>
           </div>
-          {request.reason ? (
+          {reasonText ? (
             <p className="mt-1 text-pretty text-sm leading-relaxed text-ink-muted">
               <span className="sr-only">{t('portal.whyAsked')}: </span>
-              {request.reason}
+              {reasonText}
             </p>
           ) : null}
           {rejected && request.rejectionReason ? (
             <p className="mt-1.5 text-sm text-status-danger">
-              Needs another try: {request.rejectionReason}
+              {t('portal.needsAnotherTry', { detail: request.rejectionReason })}
             </p>
           ) : null}
           {request.instructions ? (
@@ -392,7 +454,10 @@ export function ChecklistItem({
           ) : null}
           {request.expectedCount > 1 && provided > 0 ? (
             <p className="ticket mt-1.5 text-2xs text-ink-faint">
-              {provided} of {request.expectedCount} uploaded
+              {t('portal.uploadedCount', {
+                uploadedCount: provided,
+                expectedCount: request.expectedCount,
+              })}
             </p>
           ) : null}
         </div>

@@ -8,16 +8,18 @@ import {
 } from 'react';
 import {
   DEFAULT_LOCALE,
-  effectiveLocale,
   isLocaleId,
   localeRecord,
   LOCALE_IDS,
   multilingualEnabled,
+  reasonFor,
+  resolveClientLocale,
   t as translate,
   type ClientLanguage,
   type Direction,
   type Firm,
   type LocaleId,
+  type ReasonBearing,
   type StringKey,
   type Vars,
 } from '@taxfax/shared';
@@ -45,6 +47,13 @@ interface PortalLocaleValue {
   lang: string;
   /** Interpolating lookup, bound to the active locale. */
   t: (key: StringKey, vars?: Vars) => string;
+  /**
+   * The "why we need this" sentence for one checklist line, in the reader's
+   * language. Takes the request rather than a string because the sentence is
+   * assembled from a key plus the evidence the rule found — an English sentence
+   * frozen at generation time cannot be translated at all.
+   */
+  reason: (request: ReasonBearing) => string;
   /** A deliberate taxpayer choice: switch now, and persist so their mail follows. */
   setLocale: (id: LocaleId) => void;
   /** Feed the known client language once the client doc has loaded. */
@@ -101,7 +110,10 @@ export function PortalLocaleProvider({ children }: { children: ReactNode }) {
 
   const syncClientLanguage = useCallback<PortalLocaleValue['syncClientLanguage']>(
     (language, firm) => {
-      const next = effectiveLocale(language, multilingualEnabled(firm));
+      // `null` when we genuinely have nothing on file, which is what lets the
+      // browser's own language be consulted below. Collapsing that to English
+      // here is what made step 3 unreachable.
+      const next = resolveClientLocale(language, multilingualEnabled(firm));
       setDetected((prev) => (prev === next ? prev : next));
     },
     [],
@@ -113,6 +125,7 @@ export function PortalLocaleProvider({ children }: { children: ReactNode }) {
       dir: record.dir,
       lang: record.bcp47,
       t: (key, vars) => translate(locale, key, vars ?? {}),
+      reason: (request) => reasonFor(locale, request),
       setLocale,
       syncClientLanguage,
     }),

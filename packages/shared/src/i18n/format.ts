@@ -47,7 +47,13 @@ const LTR_STRONG =
  * pure overhead out of every Arabic text message.
  */
 export function isolate(value: string, dir: Direction): string {
-  return dir === 'rtl' && LTR_STRONG.test(value) ? FSI + value + PDI : value;
+  if (dir !== 'rtl') return value;
+  // Already prepared. A list whose members were isolated one by one keeps its
+  // connector — Arabic's «و» — *outside* the isolates; wrapping the whole run
+  // again would make the list itself lay out left-to-right and put the first
+  // payer on the wrong end of the sentence.
+  if (value.includes(FSI)) return value;
+  return LTR_STRONG.test(value) ? FSI + value + PDI : value;
 }
 
 /** Strip the isolate marks — for logs, previews, and length maths on raw copy. */
@@ -123,6 +129,24 @@ export function formatList(locale: LocaleId, items: string[]): string {
 /** "April 15" / "15 avril" / "١٥ أبريل" — the filing-deadline date in a sentence. */
 export function formatMonthDay(locale: LocaleId, date: Date): string {
   return monthDayFormat(localeRecord(locale).bcp47).format(date);
+}
+
+/**
+ * A list of proper names — payers, employers, brokers — for splicing into a
+ * sentence.
+ *
+ * Same as `formatList`, except each name is bidi-isolated *before* the join
+ * rather than the finished list being isolated afterwards. "Acme Corporation
+ * وNorthwind Logistics LLC" has to read right-to-left as a list of two
+ * left-to-right names; isolating the whole run instead would hand the list to
+ * the LTR algorithm and reverse which payer the reader sees first.
+ */
+export function formatNames(locale: LocaleId, items: string[]): string {
+  const dir = localeRecord(locale).dir;
+  return formatList(
+    locale,
+    items.map((n) => isolate(n, dir)),
+  );
 }
 
 // ── Template interpolation ───────────────────────────────────────────────────

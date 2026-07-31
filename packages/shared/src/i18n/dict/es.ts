@@ -141,6 +141,130 @@ export const es: Dictionary = {
     'status.accepted': 'Aceptado',
     'status.rejected': 'Necesita otra copia',
     'status.waived': 'No hace falta',
+    'portal.done': 'Listo · {doneCount}',
+    'portal.uploadedCount': '{uploadedCount} de {expectedCount} enviados',
+    'portal.private': 'Privado',
+    'portal.needsAnotherTry': 'Hace falta otro intento: {detail}',
+    'portal.yourAccountant': 'su contador',
+    'portal.somethingElseHint':
+      '¿Tiene un documento que no está en la lista? Agréguelo aquí y {firmName} lo acomoda.',
+
+    'upload.percent': '{percent} %',
+    'upload.tryAgain': 'Reintentar',
+    'upload.remove': 'Quitar',
+    'upload.cancel': 'Cancelar',
+    'upload.chooseFiles': 'Elegir de sus archivos',
+    'upload.dropPrompt': 'Arrastre aquí una foto o un {format}, o',
+    'upload.chooseFile': 'elija un archivo',
+    'upload.unsupported': 'Ese tipo de archivo no sirve. Tome una foto o suba un {format}.',
+    'upload.empty': 'Ese archivo parece vacío. Pruebe con otro.',
+    'upload.tooLarge': 'Ese archivo pesa demasiado: el límite es {limit}.',
+    'upload.photoTooLarge': 'Esa foto pesa demasiado: el límite es {limit}.',
+    'upload.heicUnreadable':
+      'No pudimos leer esa foto en este dispositivo. Tómela otra vez o suba un {format}.',
+    'upload.heicFailed': 'No pudimos procesar esa foto. Pruebe con un {format}.',
+  },
+  reason: {
+    'reason.engagement': 'Necesario antes de que podamos empezar a trabajar.',
+    'reason.photoId': 'Nos hace falta para verificar su identidad al presentar en línea.',
+    'reason.photoIdBoth':
+      'Ambos cónyuges necesitan una identificación con foto vigente para presentar en línea.',
+    'reason.ipPin':
+      'Usted usó un PIN de Protección de Identidad del IRS en su declaración de {year}. El IRS emite uno nuevo cada diciembre.',
+    'reason.priorReturn':
+      'Envíe la declaración completa del año pasado y con ella armamos el resto de esta lista automáticamente.',
+
+    'reason.w2Issuers': 'El año pasado tuvo {count} {code}: de {issuers}.',
+    'reason.w2IssuersMany': 'El año pasado tuvo {count} {code}: de {issuers}.',
+    'reason.w2Wages': 'Su declaración de {year} reportó {amount} en salarios.',
+    'reason.w2Each': 'Uno de cada empleador.',
+
+    'reason.interestIssuers': 'El año pasado recibió intereses de {issuers}.',
+    'reason.interestAmount':
+      'Su declaración de {year} reportó {amount} en ingresos por intereses.',
+    'reason.dividendsIssuers': 'El año pasado recibió dividendos de {issuers}.',
+    'reason.dividendsAmount': 'Su declaración de {year} reportó {amount} en dividendos.',
+    'reason.brokerIssuers':
+      'El año pasado presentó el {code} con movimientos en {issuers}. Necesitamos el estado consolidado completo, incluidas las páginas de costo base.',
+    'reason.brokerSchedule':
+      'El año pasado presentó el {code}, así que necesitamos el {code2} consolidado de su casa de bolsa, con el detalle del costo base.',
+
+    'reason.retirement':
+      'Su declaración de {year} reportó {amount} de una IRA, una pensión o una anualidad.',
+    'reason.socialSecurity':
+      'El año pasado reportó {amount} en beneficios del Seguro Social.',
+    'reason.unemployment':
+      'El año pasado se reportó desempleo o un reembolso de impuestos estatales.',
+
+    'reason.scheduleCMany':
+      'El año pasado presentó {count} {code}: un estado de resultados por cada negocio.',
+    'reason.scheduleCIncome':
+      'El año pasado presentó el {code} con {amount} de ingreso neto del negocio. Un estado de resultados del año completo es la vía más rápida para terminar.',
+    'reason.scheduleC':
+      'El año pasado presentó el {code}. Un estado de resultados del año completo es la vía más rápida para terminar.',
+    'reason.necIssuers': 'El año pasado recibió {code} de {issuers}.',
+    'reason.necSelfEmployed':
+      'El año pasado reportó ingresos por cuenta propia: envíe cualquier {code} que le llegue.',
+    'reason.paymentAppIssuers':
+      'El año pasado recibió un {code} de {issuers}. El umbral para reportar sigue bajando, así que espere otro.',
+    'reason.paymentApp':
+      'El año pasado recibió un {code}. El umbral para reportar sigue bajando, así que espere otro.',
+    'reason.mileage':
+      'El año pasado dedujo gastos de vehículo. El IRS exige un registro de millas llevado al día, así que envíe su cuaderno o la exportación de la aplicación.',
+    'reason.homeOffice':
+      'El año pasado dedujo una oficina en casa: necesitamos los metros cuadrados de este año más servicios, renta o intereses hipotecarios, y seguro.',
+    'reason.assets':
+      'Envíe las facturas de todo lo que el negocio compró por más de $2,500: equipo, vehículos o mejoras.',
+    'reason.payroll':
+      'Los reportes de nómina de fin de año ({codes}) cuadran los salarios de la declaración.',
+    'reason.bankStatements':
+      'El año pasado tuvo ingresos del negocio pero no hay archivo de contabilidad. Con doce meses de estados de cuenta le armamos el estado de resultados.',
+
+    'reason.k1PartnershipIssuers':
+      'Usted tiene participaciones en {issuers}. Los {code} de sociedades suelen llegar tarde: envíe cada uno en cuanto lo reciba.',
+    'reason.k1Partnership': 'El año pasado recibió {count} {code} de sociedad.',
+    'reason.k1PartnershipMany': 'El año pasado recibió {count} {code} de sociedades.',
+    'reason.k1SCorpIssuers': 'Usted es accionista de {issuers}.',
+    'reason.k1SCorp': 'El año pasado recibió {count} {code} de sociedad S.',
+    'reason.k1SCorpMany': 'El año pasado recibió {count} {code} de sociedades S.',
+    'reason.k1Trust': 'El año pasado fue beneficiario de un fideicomiso o de una sucesión.',
+
+    'reason.rentalMany':
+      'El {code} mostró {count} propiedades en alquiler el año pasado: envíe ingresos y gastos de cada una.',
+    'reason.rentalOne':
+      'El año pasado presentó el {code}. Envíe la renta cobrada de todo el año y los gastos de la propiedad.',
+    'reason.mortgageIssuers': 'El año pasado pagó intereses hipotecarios a {issuers}.',
+    'reason.mortgage': 'El año pasado dedujo intereses hipotecarios.',
+    'reason.propertyTax': 'El año pasado dedujo impuestos sobre bienes raíces.',
+    'reason.closing': 'Solo si este año compró, vendió o refinanció una propiedad.',
+
+    'reason.charitableGave':
+      'El año pasado detalló deducciones y donó {amount}. Todo lo que pase de $250 necesita una constancia por escrito de la organización benéfica.',
+    'reason.charitable':
+      'El año pasado detalló deducciones. Todo lo que pase de $250 necesita una constancia por escrito de la organización benéfica.',
+    'reason.medical': 'El año pasado reclamó {amount} en gastos médicos.',
+    'reason.studentLoan': 'El año pasado dedujo intereses de préstamos estudiantiles.',
+    'reason.education': 'El año pasado reclamó un crédito educativo.',
+    'reason.childcare':
+      'El año pasado reclamó el crédito por cuidado de menores y dependientes. Necesitamos el nombre, la dirección y el número de identificación fiscal del proveedor, no solo el monto.',
+    'reason.ira': 'El año pasado dedujo una aportación a una IRA.',
+    'reason.hsa': 'El año pasado presentó el Formulario {code} por una HSA.',
+    'reason.hsaSpend': 'Nos hace falta si este año gastó de su HSA.',
+    'reason.energy': 'El año pasado reclamó un crédito de energía para el hogar.',
+    'reason.educator': 'El año pasado reclamó la deducción por gastos de educador.',
+    'reason.marketplace':
+      'El año pasado tuvo cobertura del Mercado de Seguros. Sin el Formulario {code} el IRS rechaza la declaración de plano.',
+
+    'reason.estimatesTotal':
+      'El año pasado hizo pagos estimados por un total de {amount}. Necesitamos la fecha y el monto exactos de cada uno.',
+    'reason.estimates':
+      'El año pasado hizo pagos estimados. Necesitamos la fecha y el monto exactos de cada uno.',
+    'reason.bankInfo':
+      'Para que cualquier reembolso le llegue por depósito directo y no como cheque en papel.',
+    'reason.refundDeposit': 'Para que un reembolso le llegue por depósito directo.',
+
+    'reason.crypto':
+      'El año pasado respondió que sí a la pregunta sobre activos digitales. Envíe la exportación completa de movimientos de cada plataforma y cada monedero.',
   },
   docCode: {
     'crypto-report': 'Cripto',

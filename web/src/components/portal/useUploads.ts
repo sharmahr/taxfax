@@ -4,6 +4,7 @@ import { ref as storageRef, uploadBytesResumable, type UploadTask } from 'fireba
 import { paths } from '@taxfax/shared';
 import { auth, db, storage } from '@/lib/firebase';
 import { prepareUpload, UploadPrepError } from './prepareUpload';
+import { usePortalLocale } from './locale';
 import { portalErrorMessage, requestUploadSlot } from './portalApi';
 
 /**
@@ -58,6 +59,7 @@ export interface UseUploads {
 }
 
 export function useUploads({ firmId, clientId, taxYear }: UploadContext): UseUploads {
+  const { t } = usePortalLocale();
   const [items, setItems] = useState<UploadItem[]>([]);
 
   const itemsRef = useRef<UploadItem[]>([]);
@@ -86,7 +88,6 @@ export function useUploads({ firmId, clientId, taxYear }: UploadContext): UseUpl
   const patch = useCallback((id: string, partial: Partial<UploadItem>) => {
     setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...partial } : x)));
   }, []);
-
   const forget = useCallback((id: string) => {
     canceledRef.current.delete(id);
     filesRef.current.delete(id);
@@ -102,7 +103,7 @@ export function useUploads({ firmId, clientId, taxYear }: UploadContext): UseUpl
 
       let prepared;
       try {
-        prepared = await prepareUpload(file);
+        prepared = await prepareUpload(file, t);
       } catch (err) {
         if (bail()) return forget(id);
         patch(id, {
@@ -184,7 +185,7 @@ export function useUploads({ firmId, clientId, taxYear }: UploadContext): UseUpl
         },
       );
     },
-    [firmId, clientId, taxYear, patch, forget],
+    [firmId, clientId, taxYear, patch, forget, t],
   );
 
   const start = useCallback(

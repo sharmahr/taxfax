@@ -4,6 +4,7 @@ import { collection, orderBy, query } from 'firebase/firestore';
 import { Phone, ShieldCheck } from 'lucide-react';
 import {
   paths,
+  requestSatisfied,
   type Client,
   type DocRequest,
   type Firm,
@@ -67,11 +68,12 @@ function formatUsPhone(raw: string): string {
   return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
 }
 
-function isComplete(r: DocRequest): boolean {
-  if (r.status === 'accepted') return true;
-  if (r.status === 'received') return r.documentIds.length >= Math.max(1, r.expectedCount);
-  return false;
-}
+/**
+ * "Done" means the taxpayer has nothing left to do on this row. `accepted`
+ * alone cannot answer that — see `requestSatisfied`, which is shared with every
+ * other surface so they cannot disagree about what finished means.
+ */
+const isComplete = requestSatisfied;
 
 function PortalList({ firmId, clientId }: { firmId: string; clientId: string }) {
   const coarse = usePointerCoarse();
@@ -175,7 +177,7 @@ function PortalList({ firmId, clientId }: { firmId: string; clientId: string }) 
   );
   const extraUploads = uploadItems.filter((u) => u.requestId === null);
 
-  const firmName = firm.data?.branding.displayName ?? 'your accountant';
+  const firmName = firm.data?.branding.displayName ?? t('portal.yourAccountant');
   const supportPhone = firm.data?.branding.supportPhone;
 
   const rowsForRequest = (r: DocRequest) => docsByType.get(r.docTypeId) ?? [];
@@ -193,7 +195,7 @@ function PortalList({ firmId, clientId }: { firmId: string; clientId: string }) 
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{firmName}</span>
           <span className="hidden items-center gap-1 text-2xs text-ink-faint sm:inline-flex">
             <ShieldCheck className="size-3" aria-hidden />
-            Private
+            {t('portal.private')}
           </span>
           <LanguageMenu />
         </div>
@@ -204,8 +206,8 @@ function PortalList({ firmId, clientId }: { firmId: string; clientId: string }) 
           <ListSkeleton />
         ) : requests.error ? (
           <EmptyState
-            title="We couldn’t load your list"
-            description="Check your connection and reload the page. Nothing you’ve sent is lost."
+            title={t('portal.loadFailed')}
+            description={t('portal.loadFailedHint')}
           />
         ) : (
           <>
@@ -263,7 +265,7 @@ function PortalList({ firmId, clientId }: { firmId: string; clientId: string }) 
             {doneRows.length > 0 ? (
               <section className="mt-9" aria-labelledby="done-heading">
                 <h2 id="done-heading" className="label-eyebrow mb-1">
-                  Done · {doneRows.length}
+                  {t('portal.done', { doneCount: doneRows.length })}
                 </h2>
                 <ul className="divide-y divide-line">
                   {doneRows.map((r) => (
@@ -290,17 +292,17 @@ function PortalList({ firmId, clientId }: { firmId: string; clientId: string }) 
             {total === 0 ? (
               <EmptyState
                 className="mt-8"
-                title="Nothing needed right now"
-                description={`When ${firmName} needs a document from you, it will show up here.`}
+                title={t('portal.emptyTitle')}
+                description={t('portal.emptyHint', { firmName })}
               />
             ) : null}
 
             <section className="mt-9" aria-labelledby="extra-heading">
               <h2 id="extra-heading" className="label-eyebrow mb-2">
-                Something else?
+                {t('portal.somethingElse')}
               </h2>
               <p className="mb-3 text-sm text-ink-muted">
-                Have a document that isn’t on the list? Add it here and {firmName} will sort it out.
+                {t('portal.somethingElseHint', { firmName })}
               </p>
               <div className="flex flex-col gap-2">
                 {extraDocs

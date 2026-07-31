@@ -135,6 +135,110 @@ export const zhHant: Dictionary = {
     'status.accepted': '已通過',
     'status.rejected': '需要重新上傳',
     'status.waived': '無需提供',
+    'portal.done': '已完成 · {doneCount}',
+    'portal.uploadedCount': '已上傳 {expectedCount} 份中的 {uploadedCount} 份',
+    'portal.private': '私密',
+    'portal.needsAnotherTry': '需要重新上傳：{detail}',
+    'portal.yourAccountant': '您的會計師',
+    'portal.somethingElseHint': '有清單上沒有的資料？在這裡上傳，{firmName} 會處理。',
+
+    'upload.percent': '{percent}%',
+    'upload.tryAgain': '重試',
+    'upload.remove': '移除',
+    'upload.cancel': '取消',
+    'upload.chooseFiles': '從您的檔案中選擇',
+    'upload.dropPrompt': '把照片或 {format} 拖到這裡，或',
+    'upload.chooseFile': '選擇檔案',
+    'upload.unsupported': '這種檔案格式不支援。請拍張照片，或上傳 {format}。',
+    'upload.empty': '這個檔案是空的，請換一個。',
+    'upload.tooLarge': '這個檔案太大了，上限是 {limit}。',
+    'upload.photoTooLarge': '這張照片太大了，上限是 {limit}。',
+    'upload.heicUnreadable': '這台裝置讀不了這張照片。請重拍一張，或上傳 {format}。',
+    'upload.heicFailed': '這張照片處理不了。請改用 {format}。',
+  },
+  reason: {
+    'reason.engagement': '我們開始辦理之前必須先拿到這份文件。',
+    'reason.photoId': '電子申報時需要用它核對您的身分。',
+    'reason.photoIdBoth': '電子申報時夫妻雙方都需要在有效期內的附照片證件。',
+    'reason.ipPin':
+      '您在 {year} 年度的報稅表上用了國稅局身分保護 PIN 碼。國稅局每年 12 月都會重新發一組。',
+    'reason.priorReturn': '請上傳去年完整的報稅表，我們會據此自動補齊這份清單的其餘部分。',
+
+    'reason.w2Issuers': '您去年有 {count} 份 {code}，來自 {issuers}。',
+    'reason.w2IssuersMany': '您去年有 {count} 份 {code}，來自 {issuers}。',
+    'reason.w2Wages': '您 {year} 年度的報稅表申報了 {amount} 的薪資。',
+    'reason.w2Each': '每位雇主一份。',
+
+    'reason.interestIssuers': '您去年有來自 {issuers} 的利息。',
+    'reason.interestAmount': '您 {year} 年度的報稅表申報了 {amount} 的利息收入。',
+    'reason.dividendsIssuers': '您去年有來自 {issuers} 的股利。',
+    'reason.dividendsAmount': '您 {year} 年度的報稅表申報了 {amount} 的股利。',
+    'reason.brokerIssuers':
+      '您去年報了 {code}，在 {issuers} 有交易。我們需要完整的合併對帳單，包括成本基礎那幾頁。',
+    'reason.brokerSchedule':
+      '您去年報了 {code}，所以我們需要券商出具的合併 {code2}，含成本基礎明細。',
+
+    'reason.retirement': '您 {year} 年度的報稅表申報了 {amount} 的 IRA、退休金或年金收入。',
+    'reason.socialSecurity': '您去年申報了 {amount} 的社會安全福利金。',
+    'reason.unemployment': '您去年申報過失業金或州稅退稅。',
+
+    'reason.scheduleCMany': '您去年報了 {count} 份 {code}，每項生意各需一份損益表。',
+    'reason.scheduleCIncome':
+      '您去年報了 {code}，營業淨收入 {amount}。整年的損益表是最快能辦完的方式。',
+    'reason.scheduleC': '您去年報了 {code}。整年的損益表是最快能辦完的方式。',
+    'reason.necIssuers': '您去年收到來自 {issuers} 的 {code}。',
+    'reason.necSelfEmployed': '您去年申報過自僱收入，收到的 {code} 請一併上傳。',
+    'reason.paymentAppIssuers':
+      '您去年收到來自 {issuers} 的 {code}。申報門檻一直在降，今年多半還會有。',
+    'reason.paymentApp': '您去年收到過 {code}。申報門檻一直在降，今年多半還會有。',
+    'reason.mileage':
+      '您去年申報了車輛費用。國稅局要求當時就記下的里程記錄，請上傳行車本或應用程式匯出的記錄。',
+    'reason.homeOffice':
+      '您去年申報了家庭辦公室扣除，我們需要今年的坪數，以及水電費、房租或房貸利息和保險費。',
+    'reason.assets': '生意上超過 $2,500 的採購都請上傳發票——設備、車輛或裝修改良。',
+    'reason.payroll': '年終薪資報表（{codes}）用來核對報稅表上的薪資。',
+    'reason.bankStatements':
+      '您去年有營業收入，但沒有記帳檔案。有十二個月的對帳單，我們就能替您編出損益表。',
+
+    'reason.k1PartnershipIssuers':
+      '您持有 {issuers} 的權益。合夥企業的 {code} 常常來得晚，收到一份就上傳一份。',
+    'reason.k1Partnership': '您去年收到 {count} 份合夥企業的 {code}。',
+    'reason.k1PartnershipMany': '您去年收到 {count} 份合夥企業的 {code}。',
+    'reason.k1SCorpIssuers': '您是 {issuers} 的股東。',
+    'reason.k1SCorp': '您去年收到 {count} 份 S 類公司的 {code}。',
+    'reason.k1SCorpMany': '您去年收到 {count} 份 S 類公司的 {code}。',
+    'reason.k1Trust': '您去年是某個信託或遺產的受益人。',
+
+    'reason.rentalMany': '{code} 顯示您去年有 {count} 處出租房，每處的收入和支出都請提供。',
+    'reason.rentalOne': '您去年報了 {code}。請提供該房產整年收到的租金以及各項支出。',
+    'reason.mortgageIssuers': '您去年向 {issuers} 支付了房貸利息。',
+    'reason.mortgage': '您去年扣除過房貸利息。',
+    'reason.propertyTax': '您去年扣除過房地產稅。',
+    'reason.closing': '只有今年買賣或重貸過房產才需要。',
+
+    'reason.charitableGave':
+      '您去年選擇了列舉扣除，捐了 {amount}。超過 $250 的捐款需要慈善機構出具的書面證明。',
+    'reason.charitable':
+      '您去年選擇了列舉扣除。超過 $250 的捐款需要慈善機構出具的書面證明。',
+    'reason.medical': '您去年申報了 {amount} 的醫療費用。',
+    'reason.studentLoan': '您去年扣除過助學貸款利息。',
+    'reason.education': '您去年申請過教育抵稅額。',
+    'reason.childcare':
+      '您去年申請了子女及受扶養人照顧抵稅額。我們需要托育機構的名稱、地址和稅號，光有金額不夠。',
+    'reason.ira': '您去年扣除過 IRA 供款。',
+    'reason.hsa': '您去年為健康儲蓄帳戶報了 {code} 表。',
+    'reason.hsaSpend': '今年如果從健康儲蓄帳戶裡支出過就需要。',
+    'reason.energy': '您去年申請過住宅節能抵稅額。',
+    'reason.educator': '您去年申報過教師費用扣除。',
+    'reason.marketplace':
+      '您去年參加了健保市場的保險。沒有 {code} 表，國稅局會直接退回報稅表。',
+
+    'reason.estimatesTotal': '您去年預繳了總共 {amount} 的稅款。每一筆的準確日期和金額都需要。',
+    'reason.estimates': '您去年預繳過稅款。每一筆的準確日期和金額都需要。',
+    'reason.bankInfo': '這樣退稅會直接匯進您的帳戶，不用等紙本支票。',
+    'reason.refundDeposit': '這樣退稅會直接匯進您的帳戶。',
+
+    'reason.crypto': '您去年在數位資產那一題回答了「是」。請提供每個交易所和錢包的完整交易記錄。',
   },
   docCode: {
     'crypto-report': '加密資產紀錄',

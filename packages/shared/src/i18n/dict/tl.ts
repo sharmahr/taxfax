@@ -140,6 +140,130 @@ export const tl: Dictionary = {
     'status.accepted': 'Tanggap na',
     'status.rejected': 'Kailangan ng ibang kopya',
     'status.waived': 'Hindi na kailangan',
+    'portal.done': 'Tapos · {doneCount}',
+    'portal.uploadedCount': '{uploadedCount} sa {expectedCount} ang na-upload',
+    'portal.private': 'Pribado',
+    'portal.needsAnotherTry': 'Kailangang ulitin: {detail}',
+    'portal.yourAccountant': 'ang accountant ninyo',
+    'portal.somethingElseHint':
+      'May dokumento po ba kayong wala sa listahan? Idagdag ninyo rito at aayusin ito ng {firmName}.',
+
+    'upload.percent': '{percent}%',
+    'upload.tryAgain': 'Subukan ulit',
+    'upload.remove': 'Alisin',
+    'upload.cancel': 'Kanselahin',
+    'upload.chooseFiles': 'Pumili mula sa mga file ninyo',
+    'upload.dropPrompt': 'I-drag dito ang litrato o {format}, o',
+    'upload.chooseFile': 'pumili ng file',
+    'upload.unsupported':
+      'Hindi po suportado ang ganoong file. Kumuha ng litrato, o mag-upload ng {format}.',
+    'upload.empty': 'Mukhang walang laman ang file na iyon. Subukan ang iba.',
+    'upload.tooLarge': 'Masyadong malaki ang file na iyon — {limit} lang ang limit.',
+    'upload.photoTooLarge': 'Masyadong malaki ang litratong iyon — {limit} lang ang limit.',
+    'upload.heicUnreadable':
+      'Hindi mabasa ng device na ito ang litratong iyon. Kunan ulit, o mag-upload ng {format}.',
+    'upload.heicFailed': 'Hindi namin naproseso ang litratong iyon. Subukan po ang {format}.',
+  },
+  reason: {
+    'reason.engagement': 'Kailangan po ito bago kami makapagsimula.',
+    'reason.photoId': 'Kailangan para ma-verify ang pagkakakilanlan ninyo kapag nag-e-file kami.',
+    'reason.photoIdBoth':
+      'Kailangan ng magkabilang asawa ng kasalukuyang photo ID para makapag-e-file.',
+    'reason.ipPin':
+      'Gumamit po kayo ng IRS Identity Protection PIN sa {year} na return ninyo. Bagong PIN ang inilalabas ng IRS tuwing Disyembre.',
+    'reason.priorReturn':
+      'Ipadala po ang buong return noong nakaraang taon at doon namin bubuuin nang kusa ang natitira sa listahang ito.',
+
+    'reason.w2Issuers': 'Noong nakaraang taon may {count} {code} kayo — mula sa {issuers}.',
+    'reason.w2IssuersMany': 'Noong nakaraang taon may {count} {code} kayo — mula sa {issuers}.',
+    'reason.w2Wages': 'Sa {year} na return ninyo, {amount} ang naiulat na sahod.',
+    'reason.w2Each': 'Isa mula sa bawat employer.',
+
+    'reason.interestIssuers': 'May interes kayo noong nakaraang taon mula sa {issuers}.',
+    'reason.interestAmount': 'Sa {year} na return ninyo, {amount} ang naiulat na kita sa interes.',
+    'reason.dividendsIssuers': 'May dividends kayo noong nakaraang taon mula sa {issuers}.',
+    'reason.dividendsAmount': 'Sa {year} na return ninyo, {amount} ang naiulat na dividends.',
+    'reason.brokerIssuers':
+      'Nag-file po kayo ng {code} noong nakaraang taon na may transaksyon sa {issuers}. Kailangan namin ang buong consolidated statement, kasama ang mga pahina ng cost basis.',
+    'reason.brokerSchedule':
+      'Nag-file kayo ng {code} noong nakaraang taon, kaya kailangan namin ang consolidated {code2} ng broker ninyo — pati ang detalye ng cost basis.',
+
+    'reason.retirement':
+      'Sa {year} na return ninyo, {amount} ang naiulat mula sa IRA, pensiyon o annuity.',
+    'reason.socialSecurity': 'Nag-ulat po kayo ng {amount} na benepisyo sa Social Security noong nakaraang taon.',
+    'reason.unemployment':
+      'May naiulat na unemployment o state tax refund noong nakaraang taon.',
+
+    'reason.scheduleCMany':
+      'Nag-file po kayo ng {count} {code} noong nakaraang taon — isang profit & loss statement kada negosyo.',
+    'reason.scheduleCIncome':
+      'Nag-file kayo ng {code} noong nakaraang taon na may {amount} na net na kita sa negosyo. Ang buong-taong P&L ang pinakamabilis na paraan para matapos ito.',
+    'reason.scheduleC':
+      'Nag-file kayo ng {code} noong nakaraang taon. Ang buong-taong P&L ang pinakamabilis na paraan para matapos ito.',
+    'reason.necIssuers': 'Nakatanggap po kayo ng {code} mula sa {issuers} noong nakaraang taon.',
+    'reason.necSelfEmployed':
+      'Nag-ulat po kayo ng kita bilang self-employed noong nakaraang taon — ipadala ang anumang {code} na matatanggap ninyo.',
+    'reason.paymentAppIssuers':
+      'Nakatanggap kayo ng {code} mula sa {issuers} noong nakaraang taon. Pababa nang pababa ang reporting threshold, kaya asahan po ninyong may isa pa.',
+    'reason.paymentApp':
+      'Nakatanggap kayo ng {code} noong nakaraang taon. Pababa nang pababa ang reporting threshold, kaya asahan po ninyong may isa pa.',
+    'reason.mileage':
+      'Nag-claim po kayo ng gastos sa sasakyan noong nakaraang taon. Hinihingi ng IRS ang mileage record na isinusulat habang nangyayari, kaya ipadala ang logbook o ang export mula sa app.',
+    'reason.homeOffice':
+      'Nag-claim kayo ng home office noong nakaraang taon — kailangan namin ang sukat ngayong taon, saka ang kuryente at tubig, upa o mortgage interest, at insurance.',
+    'reason.assets':
+      'Ipadala ang mga resibo ng anumang binili ng negosyo na lampas $2,500 — kagamitan, sasakyan, o pagpapaganda.',
+    'reason.payroll':
+      'Ang year-end payroll reports ({codes}) ang ginagamit para itugma ang sahod sa return.',
+    'reason.bankStatements':
+      'May kita po kayo sa negosyo noong nakaraang taon pero walang bookkeeping file. Sa labindalawang buwang statement, kami na ang gagawa ng P&L para sa inyo.',
+
+    'reason.k1PartnershipIssuers':
+      'May bahagi po kayo sa {issuers}. Madalas nahuhuli ang {code} ng partnership — ipadala ang bawat isa pagdating.',
+    'reason.k1Partnership': 'Nakatanggap kayo ng {count} {code} ng partnership noong nakaraang taon.',
+    'reason.k1PartnershipMany':
+      'Nakatanggap kayo ng {count} {code} ng partnership noong nakaraang taon.',
+    'reason.k1SCorpIssuers': 'Shareholder po kayo sa {issuers}.',
+    'reason.k1SCorp': 'Nakatanggap kayo ng {count} {code} ng S corporation noong nakaraang taon.',
+    'reason.k1SCorpMany': 'Nakatanggap kayo ng {count} {code} ng S corporation noong nakaraang taon.',
+    'reason.k1Trust': 'Benepisyaryo po kayo ng trust o estate noong nakaraang taon.',
+
+    'reason.rentalMany':
+      'Ipinakita ng {code} na may {count} kayong paupahang ari-arian noong nakaraang taon — ipadala ang kita at gastos ng bawat isa.',
+    'reason.rentalOne':
+      'Nag-file kayo ng {code} noong nakaraang taon. Ipadala ang buong-taong upa na nakolekta pati ang mga gastos sa ari-arian.',
+    'reason.mortgageIssuers': 'May binayarang mortgage interest kayo sa {issuers} noong nakaraang taon.',
+    'reason.mortgage': 'Nag-deduct po kayo ng mortgage interest noong nakaraang taon.',
+    'reason.propertyTax': 'Nag-deduct po kayo ng real estate tax noong nakaraang taon.',
+    'reason.closing': 'Kung bumili, nagbenta, o nag-refinance lang kayo ng ari-arian ngayong taon.',
+
+    'reason.charitableGave':
+      'Nag-itemize po kayo noong nakaraang taon at nagbigay ng {amount}. Ang lampas $250 ay kailangan ng nakasulat na patunay mula sa charity.',
+    'reason.charitable':
+      'Nag-itemize po kayo noong nakaraang taon. Ang lampas $250 ay kailangan ng nakasulat na patunay mula sa charity.',
+    'reason.medical': 'Nag-claim po kayo ng {amount} na gastusing medikal noong nakaraang taon.',
+    'reason.studentLoan': 'Nag-deduct po kayo ng student loan interest noong nakaraang taon.',
+    'reason.education': 'Nag-claim po kayo ng education credit noong nakaraang taon.',
+    'reason.childcare':
+      'Nag-claim po kayo ng child and dependent care credit noong nakaraang taon. Kailangan namin ang pangalan, address, at tax ID ng provider — hindi lang ang halaga.',
+    'reason.ira': 'Nag-deduct po kayo ng IRA contribution noong nakaraang taon.',
+    'reason.hsa': 'Nag-file po kayo ng Form {code} para sa HSA noong nakaraang taon.',
+    'reason.hsaSpend': 'Kailangan kung may ginastos kayo mula sa HSA ngayong taon.',
+    'reason.energy': 'Nag-claim po kayo ng home energy credit noong nakaraang taon.',
+    'reason.educator': 'Nag-claim po kayo ng educator expense deduction noong nakaraang taon.',
+    'reason.marketplace':
+      'May Marketplace coverage po kayo noong nakaraang taon. Kapag walang Form {code}, tuwirang ibinabasura ng IRS ang return.',
+
+    'reason.estimatesTotal':
+      'Nagbayad po kayo ng estimated payments noong nakaraang taon na umabot sa {amount}. Kailangan namin ang eksaktong petsa at halaga ng bawat isa.',
+    'reason.estimates':
+      'Nagbayad po kayo ng estimated payments noong nakaraang taon. Kailangan namin ang eksaktong petsa at halaga ng bawat isa.',
+    'reason.bankInfo':
+      'Para dumiretso sa account ninyo ang anumang refund sa halip na papel na tseke.',
+    'reason.refundDeposit': 'Para dumiretso sa account ninyo ang refund.',
+
+    'reason.crypto':
+      'Sumagot po kayo ng oo sa tanong tungkol sa digital assets noong nakaraang taon. Ipadala ang buong transaction export ng bawat exchange at wallet.',
   },
   docCode: {
     'crypto-report': 'Crypto',

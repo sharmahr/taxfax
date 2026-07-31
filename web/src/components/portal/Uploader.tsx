@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Camera, Paperclip, UploadCloud } from 'lucide-react';
+import { UPLOAD_ACCEPT_ATTR } from '@taxfax/shared';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
 import { usePortalLocale } from './locale';
@@ -51,7 +52,7 @@ export function Uploader({ onFiles, coarse, label, size = 'md', className }: Upl
       <input
         ref={filesRef}
         type="file"
-        accept="image/*,application/pdf"
+        accept={UPLOAD_ACCEPT_ATTR}
         multiple
         className="hidden"
         aria-hidden="true"
@@ -82,7 +83,7 @@ export function Uploader({ onFiles, coarse, label, size = 'md', className }: Upl
           className="inline-flex items-center justify-center gap-1.5 rounded-md py-1 text-sm text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
         >
           <Paperclip className="size-3.5" aria-hidden />
-          Choose from your files
+          {t('upload.chooseFiles')}
         </button>
         <span className="sr-only">{label}</span>
         {hiddenInputs}
@@ -116,13 +117,13 @@ export function Uploader({ onFiles, coarse, label, size = 'md', className }: Upl
         aria-hidden
       />
       <p className="text-sm text-ink-muted">
-        Drag a photo or PDF here, or{' '}
+        {t('upload.dropPrompt', { format: 'PDF' })}{' '}
         <button
           type="button"
           onClick={() => filesRef.current?.click()}
           className="font-medium text-ink underline underline-offset-4 hover:text-stamp-ink"
         >
-          choose a file
+          {t('upload.chooseFile')}
         </button>
       </p>
       <span className="sr-only">{label}</span>

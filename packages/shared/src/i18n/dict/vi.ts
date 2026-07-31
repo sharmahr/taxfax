@@ -137,6 +137,128 @@ export const vi: Dictionary = {
     'status.accepted': 'Đã duyệt',
     'status.rejected': 'Cần gửi lại bản khác',
     'status.waived': 'Không cần',
+    'portal.done': 'Xong · {doneCount}',
+    'portal.uploadedCount': 'Đã tải lên {uploadedCount} trong {expectedCount}',
+    'portal.private': 'Riêng tư',
+    'portal.needsAnotherTry': 'Cần gửi lại: {detail}',
+    'portal.yourAccountant': 'kế toán của quý vị',
+    'portal.somethingElseHint':
+      'Quý vị có giấy tờ không nằm trong danh sách? Thêm vào đây, {firmName} sẽ xử lý.',
+
+    'upload.percent': '{percent}%',
+    'upload.tryAgain': 'Thử lại',
+    'upload.remove': 'Bỏ ra',
+    'upload.cancel': 'Hủy',
+    'upload.chooseFiles': 'Chọn từ tệp của quý vị',
+    'upload.dropPrompt': 'Kéo hình hoặc {format} vào đây, hoặc',
+    'upload.chooseFile': 'chọn một tệp',
+    'upload.unsupported': 'Loại tệp đó không dùng được. Xin chụp hình, hoặc tải lên {format}.',
+    'upload.empty': 'Tệp đó có vẻ trống. Xin thử tệp khác.',
+    'upload.tooLarge': 'Tệp đó quá lớn — giới hạn là {limit}.',
+    'upload.photoTooLarge': 'Hình đó quá lớn — giới hạn là {limit}.',
+    'upload.heicUnreadable':
+      'Máy này không đọc được hình đó. Xin chụp lại, hoặc tải lên {format}.',
+    'upload.heicFailed': 'Chúng tôi không xử lý được hình đó. Xin thử {format}.',
+  },
+  reason: {
+    'reason.engagement': 'Cần có trước khi chúng tôi bắt đầu làm.',
+    'reason.photoId': 'Cần để xác minh danh tính khi chúng tôi khai thuế điện tử.',
+    'reason.photoIdBoth':
+      'Cả hai vợ chồng đều cần giấy tờ tùy thân có hình còn hiệu lực để khai thuế điện tử.',
+    'reason.ipPin':
+      'Quý vị đã dùng mã PIN Bảo vệ Danh tính của IRS trên tờ khai {year}. IRS cấp mã mới mỗi tháng 12.',
+    'reason.priorReturn':
+      'Xin gửi tờ khai đầy đủ của năm ngoái; từ đó chúng tôi tự lập phần còn lại của danh sách này.',
+
+    'reason.w2Issuers': 'Năm ngoái quý vị có {count} {code} — từ {issuers}.',
+    'reason.w2IssuersMany': 'Năm ngoái quý vị có {count} {code} — từ {issuers}.',
+    'reason.w2Wages': 'Tờ khai {year} của quý vị ghi {amount} tiền lương.',
+    'reason.w2Each': 'Mỗi hãng làm việc một tờ.',
+
+    'reason.interestIssuers': 'Năm ngoái quý vị có tiền lãi từ {issuers}.',
+    'reason.interestAmount': 'Tờ khai {year} của quý vị ghi {amount} tiền lãi.',
+    'reason.dividendsIssuers': 'Năm ngoái quý vị có cổ tức từ {issuers}.',
+    'reason.dividendsAmount': 'Tờ khai {year} của quý vị ghi {amount} cổ tức.',
+    'reason.brokerIssuers':
+      'Năm ngoái quý vị đã nộp {code} với giao dịch tại {issuers}. Chúng tôi cần bản sao kê tổng hợp đầy đủ, kể cả các trang giá vốn.',
+    'reason.brokerSchedule':
+      'Năm ngoái quý vị đã nộp {code}, nên chúng tôi cần bản {code2} tổng hợp của công ty môi giới — kèm chi tiết giá vốn.',
+
+    'reason.retirement':
+      'Tờ khai {year} của quý vị ghi {amount} từ IRA, tiền hưu hoặc niên kim.',
+    'reason.socialSecurity': 'Năm ngoái quý vị khai {amount} tiền An Sinh Xã Hội.',
+    'reason.unemployment':
+      'Năm ngoái có khai tiền thất nghiệp hoặc tiền hoàn thuế của tiểu bang.',
+
+    'reason.scheduleCMany':
+      'Năm ngoái quý vị đã nộp {count} {code} — mỗi cơ sở kinh doanh một bảng lời lỗ.',
+    'reason.scheduleCIncome':
+      'Năm ngoái quý vị đã nộp {code} với {amount} lợi tức kinh doanh ròng. Bảng lời lỗ cả năm là cách nhanh nhất để xong việc.',
+    'reason.scheduleC':
+      'Năm ngoái quý vị đã nộp {code}. Bảng lời lỗ cả năm là cách nhanh nhất để xong việc.',
+    'reason.necIssuers': 'Năm ngoái quý vị nhận {code} từ {issuers}.',
+    'reason.necSelfEmployed':
+      'Năm ngoái quý vị khai lợi tức tự làm chủ — xin gửi mọi {code} quý vị nhận được.',
+    'reason.paymentAppIssuers':
+      'Năm ngoái quý vị nhận {code} từ {issuers}. Mức phải khai báo ngày càng thấp, nên năm nay chắc cũng có.',
+    'reason.paymentApp':
+      'Năm ngoái quý vị nhận {code}. Mức phải khai báo ngày càng thấp, nên năm nay chắc cũng có.',
+    'reason.mileage':
+      'Năm ngoái quý vị khai chi phí xe. IRS đòi sổ ghi số dặm ghi ngay lúc đi, nên xin gửi sổ hoặc bản xuất từ ứng dụng.',
+    'reason.homeOffice':
+      'Năm ngoái quý vị khai văn phòng tại nhà — chúng tôi cần diện tích năm nay, cùng tiền điện nước, tiền thuê hoặc tiền lãi nhà, và bảo hiểm.',
+    'reason.assets':
+      'Xin gửi hóa đơn của mọi thứ cơ sở kinh doanh mua trên $2,500 — máy móc, xe cộ hoặc sửa chữa nâng cấp.',
+    'reason.payroll':
+      'Báo cáo lương cuối năm ({codes}) dùng để đối chiếu tiền lương trên tờ khai.',
+    'reason.bankStatements':
+      'Năm ngoái quý vị có lợi tức kinh doanh nhưng không có sổ sách. Mười hai tháng sao kê đủ để chúng tôi lập bảng lời lỗ giúp quý vị.',
+
+    'reason.k1PartnershipIssuers':
+      'Quý vị có phần hùn trong {issuers}. {code} của công ty hợp danh thường về trễ — nhận tờ nào xin gửi tờ đó.',
+    'reason.k1Partnership': 'Năm ngoái quý vị nhận {count} {code} của công ty hợp danh.',
+    'reason.k1PartnershipMany': 'Năm ngoái quý vị nhận {count} {code} của công ty hợp danh.',
+    'reason.k1SCorpIssuers': 'Quý vị là cổ đông của {issuers}.',
+    'reason.k1SCorp': 'Năm ngoái quý vị nhận {count} {code} của công ty S.',
+    'reason.k1SCorpMany': 'Năm ngoái quý vị nhận {count} {code} của công ty S.',
+    'reason.k1Trust': 'Năm ngoái quý vị là người thụ hưởng của một quỹ tín thác hoặc di sản.',
+
+    'reason.rentalMany':
+      '{code} cho thấy năm ngoái quý vị có {count} căn nhà cho thuê — xin gửi thu và chi của từng căn.',
+    'reason.rentalOne':
+      'Năm ngoái quý vị đã nộp {code}. Xin gửi tiền thuê thu cả năm cùng các khoản chi của căn nhà.',
+    'reason.mortgageIssuers': 'Năm ngoái quý vị trả tiền lãi nhà cho {issuers}.',
+    'reason.mortgage': 'Năm ngoái quý vị khấu trừ tiền lãi nợ nhà.',
+    'reason.propertyTax': 'Năm ngoái quý vị khấu trừ thuế bất động sản.',
+    'reason.closing': 'Chỉ khi năm nay quý vị mua, bán hoặc tái tài trợ nhà đất.',
+
+    'reason.charitableGave':
+      'Năm ngoái quý vị khai khấu trừ từng khoản và đã cho {amount}. Khoản nào trên $250 cần giấy xác nhận của hội từ thiện.',
+    'reason.charitable':
+      'Năm ngoái quý vị khai khấu trừ từng khoản. Khoản nào trên $250 cần giấy xác nhận của hội từ thiện.',
+    'reason.medical': 'Năm ngoái quý vị khai {amount} chi phí y tế.',
+    'reason.studentLoan': 'Năm ngoái quý vị khấu trừ tiền lãi nợ sinh viên.',
+    'reason.education': 'Năm ngoái quý vị xin tín thuế học vấn.',
+    'reason.childcare':
+      'Năm ngoái quý vị xin tín thuế chăm sóc con và người phụ thuộc. Chúng tôi cần tên, địa chỉ và mã số thuế của nơi giữ trẻ — không chỉ số tiền.',
+    'reason.ira': 'Năm ngoái quý vị khấu trừ tiền đóng vào IRA.',
+    'reason.hsa': 'Năm ngoái quý vị đã nộp Mẫu {code} cho tài khoản HSA.',
+    'reason.hsaSpend': 'Cần nếu năm nay quý vị có rút tiền từ HSA.',
+    'reason.energy': 'Năm ngoái quý vị xin tín thuế tiết kiệm năng lượng cho nhà ở.',
+    'reason.educator': 'Năm ngoái quý vị khấu trừ chi phí của nhà giáo.',
+    'reason.marketplace':
+      'Năm ngoái quý vị có bảo hiểm mua qua Marketplace. Thiếu Mẫu {code} là IRS bác tờ khai ngay.',
+
+    'reason.estimatesTotal':
+      'Năm ngoái quý vị đóng thuế tạm tính tổng cộng {amount}. Chúng tôi cần đúng ngày và số tiền của từng lần.',
+    'reason.estimates':
+      'Năm ngoái quý vị có đóng thuế tạm tính. Chúng tôi cần đúng ngày và số tiền của từng lần.',
+    'reason.bankInfo':
+      'Để tiền hoàn thuế vào thẳng tài khoản của quý vị thay vì gửi chi phiếu giấy.',
+    'reason.refundDeposit': 'Để tiền hoàn thuế vào thẳng tài khoản của quý vị.',
+
+    'reason.crypto':
+      'Năm ngoái quý vị trả lời có cho câu hỏi về tài sản số. Xin gửi bản xuất đầy đủ các giao dịch của mọi sàn và mọi ví.',
   },
   docCode: {
     'crypto-report': 'Tiền mã hóa',

@@ -17,21 +17,26 @@ export * from './locales.ts';
 export * from './lep.ts';
 export * from './format.ts';
 export * from './language.ts';
+export * from './reasons.ts';
 export type {
   ChaseStringKey,
   DescriptorDocTypeId,
   Dictionary,
   PluralKey,
   PortalStringKey,
+  ReasonKey,
+  ReasonRef,
+  ReasonVars,
   ReviewStatus,
   StringKey,
   ToneCopy,
 } from './types.ts';
-export { DESCRIPTOR_DOC_TYPE_IDS, TONES } from './types.ts';
+export { DESCRIPTOR_DOC_TYPE_IDS, REASON_KEYS, TONES } from './types.ts';
 
 import { interpolate, type Vars } from './format.ts';
 import { DEFAULT_LOCALE, isLocaleId, type LocaleId } from './locales.ts';
-import type { DescriptorDocTypeId, Dictionary, StringKey } from './types.ts';
+import { renderReason, requestReason, type ReasonBearing } from './reasons.ts';
+import type { DescriptorDocTypeId, Dictionary, ReasonRef, StringKey } from './types.ts';
 
 import { en } from './dict/en.ts';
 import { es } from './dict/es.ts';
@@ -75,6 +80,21 @@ export function t(locale: LocaleId, key: StringKey, vars: Vars = {}): string {
   const dict = dictionary(locale);
   const template = dict.s[key] ?? en.s[key];
   return interpolate(template, vars, locale, dict.plural);
+}
+
+/**
+ * The "why we need this" sentence a taxpayer reads, in their own language.
+ * Bound to the registry so callers hand over the checklist line and nothing
+ * else; the resolution order — stored key, key recovered from the stored
+ * English, then the stored English verbatim — lives in `reasons.ts`.
+ */
+export function reasonFor(locale: LocaleId, request: ReasonBearing): string {
+  return requestReason(locale, request, dictionary(locale));
+}
+
+/** One reason, rendered from a key we already hold. */
+export function reasonText(locale: LocaleId, ref: ReasonRef): string {
+  return renderReason(locale, ref, dictionary(locale));
 }
 
 /**

@@ -71,8 +71,29 @@ export function effectiveLocale(
   language: ClientLanguage | undefined | null,
   enabled = true,
 ): LocaleId {
+  return resolveClientLocale(language, enabled) ?? DEFAULT_LOCALE;
+}
+
+/**
+ * The same resolution, but honest about not knowing.
+ *
+ * `effectiveLocale` is total: it answers English when it has nothing, which is
+ * right for a chase email — something has to be sent. It is wrong for a reader
+ * who is standing in front of us, because "English" and "no idea" become
+ * indistinguishable and any weaker signal behind it, such as the browser's own
+ * `Accept-Language`, can never be reached. Returning `null` keeps that signal
+ * alive.
+ *
+ * A firm that has switched multilingual off still gets a hard `'en'`, not a
+ * `null`: that is a decision, not an absence, and the browser must not override
+ * it.
+ */
+export function resolveClientLocale(
+  language: ClientLanguage | undefined | null,
+  enabled = true,
+): LocaleId | null {
   if (!enabled) return DEFAULT_LOCALE;
-  return isLocaleId(language?.locale) ? language.locale : DEFAULT_LOCALE;
+  return isLocaleId(language?.locale) ? language.locale : null;
 }
 
 /**

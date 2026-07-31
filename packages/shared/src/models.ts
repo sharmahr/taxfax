@@ -8,6 +8,7 @@ export type Timestampish = { seconds: number; nanoseconds: number } | Date | num
 
 import type { ClientLanguage } from './i18n/language.ts';
 import type { LocaleId } from './i18n/locales.ts';
+import type { ReasonKey, ReasonVars } from './i18n/types.ts';
 
 // ── Tenancy ─────────────────────────────────────────────────────────────────
 
@@ -272,8 +273,22 @@ export interface DocRequest {
   docTypeId: string;
   /** Overrides the taxonomy label when the preparer renames it. */
   label?: string;
-  /** "Because Schedule E showed two rental properties last year." */
+  /**
+   * Why we are asking, in English. Still written on every request — the firm's
+   * own console reads it, and a preparer may type their own.
+   */
   reason: string;
+  /**
+   * The same reason as a key into the reason dictionary, so the taxpayer reads
+   * it in *their* language rather than in the one the rule happened to be
+   * written in. Absent on requests written before reasons had keys, and on
+   * anything a preparer typed themselves; the portal recovers the key from
+   * `reason` in the first case and renders it verbatim in the second, so both
+   * keep working with nothing rewritten in place.
+   */
+  reasonKey?: ReasonKey;
+  /** The evidence the rule found: counts, a tax year, an amount, payer names. */
+  reasonVars?: ReasonVars;
   source: RequestSource;
   priority: RequestPriority;
 
@@ -296,6 +311,43 @@ export interface DocRequest {
   updatedAt: Timestampish;
   receivedAt?: Timestampish;
   acceptedAt?: Timestampish;
+}
+
+/**
+ * Has the taxpayer finished this row?
+ *
+ * The status alone cannot answer that. The server flips a request to `accepted`
+ * as soon as a preparer accepts *one* document (`acceptDocument` in
+ * functions/src/ingest/pipeline.ts compares nothing to `expectedCount`), so a
+ * request for two W-2s goes green on the first upload and every surface that
+ * trusts the status tells the taxpayer to stop — and a firm files a return
+ * missing a W-2 because the portal said it was done. The count is the only
+ * thing that can answer honestly, so both terminal statuses are held to it.
+ *
+ * Exactly one parameter, deliberately: this is a predicate and it gets handed
+ * straight to `Array#filter`, which would otherwise pass the index in as a
+ * second argument and quietly answer a different question for every row.
+ */
+export function requestSatisfied(
+  r: Pick<DocRequest, 'status' | 'documentIds' | 'expectedCount'>,
+): boolean {
+  return requestSatisfiedWith(r, r.documentIds.length);
+}
+
+/**
+ * The same question when the caller can see copies the request has not caught
+ * up with — the portal is holding uploads that have landed in Storage but not
+ * yet on the request document.
+ *
+ * `expectedCount` is floored at 1: a row that expects nothing is still not
+ * finished until something arrives.
+ */
+export function requestSatisfiedWith(
+  r: Pick<DocRequest, 'status' | 'expectedCount'>,
+  provided: number,
+): boolean {
+  if (r.status !== 'accepted' && r.status !== 'received') return false;
+  return provided >= Math.max(1, r.expectedCount);
 }
 
 // ── Documents ───────────────────────────────────────────────────────────────

@@ -1,4 +1,10 @@
-import { isAcceptedUpload, formatBytes, MAX_UPLOAD_BYTES } from '@taxfax/shared';
+import {
+  isAcceptedUpload,
+  formatBytes,
+  MAX_UPLOAD_BYTES,
+  type StringKey,
+  type Vars,
+} from '@taxfax/shared';
 
 /**
  * Turns whatever a taxpayer hands us into something the ingest pipeline can
@@ -9,7 +15,14 @@ import { isAcceptedUpload, formatBytes, MAX_UPLOAD_BYTES } from '@taxfax/shared'
  * to nothing and sit in `needs_review` forever. Safari/WebKit can decode HEIC
  * natively through `createImageBitmap`, so we transcode to JPEG on-device with a
  * canvas — no library, no WASM, nothing extra on the wire for an old phone.
+ *
+ * Every refusal here is read by the taxpayer, so it arrives through the same
+ * dictionary as the rest of the portal: this module takes a translator rather
+ * than owning English.
  */
+
+/** The portal's bound lookup, handed in so this module holds no English. */
+export type Translate = (key: StringKey, vars?: Vars) => string;
 
 export interface PreparedFile {
   blob: Blob;
@@ -63,8 +76,6 @@ function guessType(name: string): string {
     case 'tif':
     case 'tiff':
       return 'image/tiff';
-    case 'csv':
-      return 'text/csv';
     case 'heic':
       return 'image/heic';
     case 'heif':
@@ -78,15 +89,13 @@ function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));
 }
 
-async function transcodeHeic(file: File): Promise<PreparedFile> {
+async function transcodeHeic(file: File, t: Translate): Promise<PreparedFile> {
   const originalName = file.name || 'photo.heic';
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    throw new UploadPrepError(
-      "We couldn't read that photo on this device. Try taking it again, or upload a PDF.",
-    );
+    throw new UploadPrepError(t('upload.heicUnreadable', { format: 'PDF' }));
   }
   try {
     const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
@@ -97,15 +106,15 @@ async function transcodeHeic(file: File): Promise<PreparedFile> {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new UploadPrepError("We couldn't process that photo. Try a PDF instead.");
+    if (!ctx) throw new UploadPrepError(t('upload.heicFailed', { format: 'PDF' }));
     ctx.drawImage(bitmap, 0, 0, width, height);
 
     const blob = await canvasToJpeg(canvas);
     if (!blob || blob.size <= 0) {
-      throw new UploadPrepError("We couldn't process that photo. Try a PDF instead.");
+      throw new UploadPrepError(t('upload.heicFailed', { format: 'PDF' }));
     }
     if (blob.size > MAX_UPLOAD_BYTES) {
-      throw new UploadPrepError(`That photo is too large — the limit is ${formatBytes(MAX_UPLOAD_BYTES)}.`);
+      throw new UploadPrepError(t('upload.photoTooLarge', { limit: formatBytes(MAX_UPLOAD_BYTES) }));
     }
     return {
       blob,
@@ -125,20 +134,20 @@ async function transcodeHeic(file: File): Promise<PreparedFile> {
  * up front so the taxpayer learns a file is too big or the wrong type *before*
  * any upload begins, not after a wasted minute on a slow connection.
  */
-export async function prepareUpload(file: File): Promise<PreparedFile> {
-  if (isHeic(file)) return transcodeHeic(file);
+export async function prepareUpload(file: File, t: Translate): Promise<PreparedFile> {
+  if (isHeic(file)) return transcodeHeic(file, t);
 
   const originalName = file.name || 'upload';
   const contentType = file.type || guessType(originalName);
 
   if (!isAcceptedUpload(contentType)) {
-    throw new UploadPrepError("That kind of file isn't supported. Take a photo, or upload a PDF.");
+    throw new UploadPrepError(t('upload.unsupported', { format: 'PDF' }));
   }
   if (file.size <= 0) {
-    throw new UploadPrepError('That file looks empty. Try another.');
+    throw new UploadPrepError(t('upload.empty'));
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    throw new UploadPrepError(`That file is too large — the limit is ${formatBytes(MAX_UPLOAD_BYTES)}.`);
+    throw new UploadPrepError(t('upload.tooLarge', { limit: formatBytes(MAX_UPLOAD_BYTES) }));
   }
 
   return {
