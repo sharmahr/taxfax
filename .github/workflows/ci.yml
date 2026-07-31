@@ -52,8 +52,9 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix web
       - run: npm ci --prefix functions
-      - run: npm --prefix web run typecheck
-      - run: npm --prefix functions run typecheck
+      # One definition of "typecheck", shared by CI and `npm run verify`, so a
+      # new project can't be typechecked locally but skipped here.
+      - run: npm run typecheck
       - name: Build functions bundle
         run: npm --prefix functions run build
       - name: Build web

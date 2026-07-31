@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix functions run build && npm --prefix web run build",
-    "typecheck": "npm --prefix web run typecheck && npm --prefix functions run typecheck",
+    "typecheck": "npm --prefix web run typecheck && npm --prefix functions run typecheck && tsc -p tsconfig.e2e.json",
     "check": "node --experimental-strip-types packages/shared/src/check.ts",
     "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --experimental-strip-types --test firestore.rules.test.ts storage.rules.test.ts",
     "test:rules:ci": "firebase emulators:exec --only firestore,storage --project taxfax-364f6 \"npm run test:rules\"",

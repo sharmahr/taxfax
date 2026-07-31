@@ -13,7 +13,13 @@
  *     Foods`) and echoed in the UI.
  *  3. MOBILE: an iPhone HEIC photo is transcoded to JPEG *in the browser*
  *     (WebKit) before upload — the record lands as `image/jpeg` even though the
- *     phone handed us `image/heic`. (The Cloud Vision OCR extension isn't run in
+ *     phone handed us `image/heic`. HEIC decoding is a platform capability, so
+ *     the spec probes for it: where it exists the transcode is asserted down to
+ *     the JPEG magic bytes, and where it doesn't (Playwright's Linux WebKit, on
+ *     CI) the spec asserts the taxpayer gets a real refusal and runs the rest of
+ *     the journey on the same photo as a PNG. The run annotates which path it
+ *     took, so a green mobile run never implies more than it proved.
+ *     (The Cloud Vision OCR extension isn't run in
  *     the local suite, so a photo can't be *classified* locally; it settles as
  *     an unsorted upload with the baseline confirmation. Enrichment is proven on
  *     desktop, where PDF text is read in-process by `unpdf`.)
@@ -32,6 +38,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
@@ -151,6 +158,28 @@ async function signInAsTaxpayer(page: Page): Promise<void> {
   // persisted portal claim and renders the list directly, with nothing in flight.
   await page.reload();
   await expect(page.locator('#portal-heading')).toBeVisible({ timeout: 60_000 });
+}
+
+/**
+ * Whether this browser can decode HEIC at all — a platform capability, not
+ * something the app controls. macOS and iOS WebKit decode it through the OS;
+ * Playwright's Linux WebKit (what CI runs) ships no decoder. Probed with the
+ * real fixture bytes, so the answer is about this exact file rather than a
+ * guess about the engine.
+ */
+async function canDecodeHeic(page: Page): Promise<boolean> {
+  const heic = readFileSync(join(FIXTURES, 'w2-photo.heic')).toString('base64');
+  return page.evaluate(async (data) => {
+    try {
+      const bitmap = await createImageBitmap(
+        new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], { type: 'image/heic' }),
+      );
+      bitmap.close();
+      return true;
+    } catch {
+      return false;
+    }
+  }, heic);
 }
 
 /** Polls the documents collection for the one our upload just produced. */
@@ -295,11 +324,42 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
 
   // ── 2. Send the document the way this taxpayer actually would ───────────────
   // Desktop: the requested W-2, as a PDF, straight into its checklist row.
-  // Mobile: a photographed W-2 (HEIC) through the "Something else?" camera.
+  // Mobile: a photographed W-2 through the "Something else?" camera.
+  //
+  // HEIC is the whole point of the mobile path — it is what an iPhone shoots by
+  // default — but decoding it is a platform capability, not something the app
+  // can polyfill: WebKit reads it through the OS on macOS and iOS, while
+  // Playwright's Linux build (what CI runs) ships no HEIC decoder at all. So
+  // probe instead of assuming. Where HEIC decodes we assert the transcode down
+  // to the JPEG magic bytes; where it cannot, we assert the taxpayer gets a real
+  // refusal rather than a silent failure, and run the rest of the journey on the
+  // same photo as a PNG. Skipping outright would leave the phone journey — the
+  // reason this project exists on mobile — untested on every CI run.
+  const heicDecodes = isMobile && (await canDecodeHeic(page));
+  const photo = heicDecodes
+    ? { file: 'w2-photo.heic', ext: 'jpg', type: 'image/jpeg', magic: [0xff, 0xd8, 0xff] }
+    : { file: 'w2-photo.png', ext: 'png', type: 'image/png', magic: [0x89, 0x50, 0x4e] };
+  if (isMobile) {
+    testInfo.annotations.push({
+      type: 'heic',
+      description: heicDecodes
+        ? 'browser decodes HEIC — transcode asserted at the byte level'
+        : 'browser cannot decode HEIC — asserted the refusal path, journey run as PNG',
+    });
+  }
+
   let scope;
   if (isMobile) {
     scope = page.locator('section[aria-labelledby="extra-heading"]');
-    await scope.locator('input[type="file"][capture="environment"]').first().setInputFiles(join(FIXTURES, 'w2-photo.heic'));
+    const camera = scope.locator('input[type="file"][capture="environment"]').first();
+
+    if (!heicDecodes) {
+      // The taxpayer must be told, not left staring at a stalled row. Asserted
+      // through the alert role so translated copy can't quietly disable this.
+      await camera.setInputFiles(join(FIXTURES, 'w2-photo.heic'));
+      await expect(page.getByRole('alert').first()).toBeVisible({ timeout: 20_000 });
+    }
+    await camera.setInputFiles(join(FIXTURES, photo.file));
   } else {
     scope = page.locator('li').filter({ has: page.getByRole('heading', { name: /W-2/ }) });
     await scope.locator('input[type="file"][multiple]').first().setInputFiles(join(FIXTURES, 'w2-form.pdf'));
@@ -322,15 +382,17 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
     // Transcode proof: the phone handed us a HEIC (w2-photo.heic), and the
     // settled record is a JPEG — new content type, new `.jpg` name. Nothing but
     // the in-browser transcode turns a HEIC input into an image/jpeg object.
+    // Where the browser cannot decode HEIC this asserts the PNG we fell back to,
+    // and `photo` is the single place that difference lives.
     // (Waiting for a settled state also means the storagePath below is final.)
     uploaded = await findUploadedDoc(
       (d) =>
         d.uploadedVia === 'portal' &&
-        d.contentType === 'image/jpeg' &&
+        d.contentType === photo.type &&
         (d.state === 'needs_review' || d.state === 'classified'),
       150_000,
     );
-    expect(uploaded.data.originalName).toMatch(/\.jpg$/i);
+    expect(uploaded.data.originalName).toMatch(new RegExp(`\\.${photo.ext}$`, 'i'));
   } else {
     // Enrichment proof: classified as a W-2 with the issuer we planted, by the
     // emulator's own extract → classify pass — not seeded.
@@ -347,8 +409,8 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
 
   // ── 4. Prove it landed where the rules demand, at the canonical path ────────
   const bucket = getStorage(admin).bucket(BUCKET);
-  const wantExt = isMobile ? 'jpg' : 'pdf';
-  const wantType = isMobile ? 'image/jpeg' : 'application/pdf';
+  const wantExt = isMobile ? photo.ext : 'pdf';
+  const wantType = isMobile ? photo.type : 'application/pdf';
 
   // The pipeline renames every settled doc, so the record's own storagePath is
   // the source of truth for where the bytes ended up.
@@ -362,11 +424,12 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
   expect(meta.contentType).toBe(wantType);
 
   if (isMobile) {
-    // Content-level transcode proof: the stored bytes begin with the JPEG SOI
-    // marker (FF D8 FF). A HEIC merely renamed to .jpg would not — so this is
-    // proof the on-device canvas transcode actually re-encoded the photo.
+    // Content-level proof: the stored bytes carry the magic number of the format
+    // we expect. On the HEIC path that is the JPEG SOI marker (FF D8 FF), which
+    // a HEIC merely renamed to .jpg would not have — so it is proof the
+    // on-device canvas transcode really re-encoded the photo.
     const [bytes] = await bucket.file(storagePath).download();
-    expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xff, 0xd8, 0xff]);
+    expect([bytes[0], bytes[1], bytes[2]]).toEqual(photo.magic);
   }
 
   // ── 5. Undo: withdraw it, and prove the withdrawal in Firestore ─────────────
