@@ -578,7 +578,15 @@ function outcomeSentence(stats: ImportStats, checkingRoster: boolean): string {
     return 'No row in this file can become a client — check the column mapping above.';
   }
   if (untouched > 0) {
-    return `${plural(stats.create, 'client is', 'clients are')} new. The other ${plural(untouched, 'row', 'rows')} ${untouched === 1 ? 'is' : 'are'} already in your workspace and will be left alone.`;
+    // Two different reasons a row is skipped, and conflating them is a lie on a
+    // first import: an in-file repeat is not "already in your workspace".
+    const skipped = [
+      stats.existing > 0 ? `${plural(stats.existing, 'row', 'rows')} already in your workspace` : '',
+      stats.duplicate > 0 ? `${plural(stats.duplicate, 'row', 'rows')} repeated inside this file` : '',
+    ]
+      .filter(Boolean)
+      .join(' and ');
+    return `${plural(stats.create, 'client is', 'clients are')} new. We'll skip ${skipped} — nothing gets duplicated.`;
   }
   return 'Safe to run twice — we match on email, so re-uploading this file changes nothing.';
 }

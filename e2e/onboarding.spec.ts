@@ -193,7 +193,7 @@ test('firm signs up, imports a messy CSV, and a re-run is a no-op', async ({ pag
   // status render in both the mobile card list and the sm+ table (one is hidden
   // per viewport), so we match only the visible instance.
   await expect(page.getByText('Whitfield, Eleanor').filter({ visible: true })).toBeVisible(); // quoted comma survived
-  await expect(page.getByText(/5\s+ready/i)).toBeVisible();
+  await expect(page.getByText(/5\s+new/i)).toBeVisible();
 
   // Expand the "needs a look" ledger and assert both flagged cases there. The
   // ledger is a single, viewport-independent summary, so it proves the malformed

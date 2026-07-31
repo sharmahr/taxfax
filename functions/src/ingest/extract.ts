@@ -15,7 +15,7 @@
  */
 
 import { getDocumentProxy } from 'unpdf';
-import { bucket, db } from '../lib/admin.js';
+import { bucket, db } from '../lib/admin.ts';
 
 /** Pages separated by form-feed; the classifier splits on this. */
 const PAGE_SEP = '\f';
@@ -119,11 +119,19 @@ function decodeText(buf: Buffer): string {
 
 function pickOcrText(data: Record<string, unknown>): string {
   if (typeof data.text === 'string') return data.text;
-  if (typeof data.extractedText === 'string') return data.extractedText;
-  // "full" detail mode nests the Vision response.
-  const full = data.fullTextAnnotation as { text?: unknown } | undefined;
-  if (full && typeof full.text === 'string') return full.text;
-  return '';
+  // DETAIL=full writes the raw Vision array instead; entry 0 is the whole page.
+  const annotations = data.textAnnotations as { description?: unknown }[] | undefined;
+  const first = annotations?.[0]?.description;
+  return typeof first === 'string' ? first : '';
+}
+
+/**
+ * The key the extension indexes its output under. It writes the *fully
+ * qualified* object URI, not the bare object name we use everywhere else —
+ * querying with the bare name silently matches nothing.
+ */
+export function ocrFileKey(bucketName: string, objectName: string): string {
+  return `gs://${bucketName}/${objectName}`;
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -140,7 +148,10 @@ async function readOcrText(objectName: string, contentType: string): Promise<str
   let delay = 1_000;
   for (;;) {
     try {
-      const snap = await collection.where('file', '==', objectName).limit(1).get();
+      const snap = await collection
+        .where('file', '==', ocrFileKey(bucket.name, objectName))
+        .limit(1)
+        .get();
       if (!snap.empty) {
         const text = pickOcrText(snap.docs[0]!.data());
         if (text.trim().length > 0) return text;
