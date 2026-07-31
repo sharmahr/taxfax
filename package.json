@@ -21,6 +21,7 @@
     "emu": "firebase emulators:start --only auth,firestore,storage,functions,pubsub,eventarc --import .emulator-data --export-on-exit .emulator-data",
     "emu:clean": "firebase emulators:start --only auth,firestore,storage,functions,pubsub,eventarc",
     "seed": "node --experimental-strip-types seed/seed.ts",
+    "pree2e": "npm --prefix functions run build",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "deploy": "npm run build && firebase deploy",
