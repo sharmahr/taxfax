@@ -1,9 +1,11 @@
 export { SeasonHeader } from './SeasonHeader';
+export { SeasonStanding } from './SeasonStanding';
 export { Section } from './Section';
 export { TriageRow } from './TriageRow';
+export { ClientList } from './ClientList';
 export { ReviewCard } from './ReviewCard';
 export { ActivityRail } from './ActivityRail';
 export { DashboardSkeleton } from './DashboardSkeleton';
 export { DashboardEmpty } from './DashboardEmpty';
-export { deriveDashboard, seasonClock } from './logic';
-export type { DashboardModel, TriageItem, ClientDoc, RequestDoc, ReviewDoc } from './logic';
+export { dashboardNow, deriveDashboard, seasonClock } from './logic';
+export type { DashboardModel, SeasonClock, SeasonPhase, TriageItem, ClientDoc, RequestDoc, ReviewDoc } from './logic';

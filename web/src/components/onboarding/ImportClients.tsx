@@ -6,11 +6,16 @@ import {
   RotateCcw,
   UploadCloud,
 } from 'lucide-react';
+import { collection, query, where } from 'firebase/firestore';
 import {
   ENTITY_TYPE_LABEL,
+  paths,
+  type Client,
   type EntityType,
   type FilingStatus,
 } from '@taxfax/shared';
+import { db } from '@/lib/firebase';
+import { useCollection } from '@/lib/firestore';
 import { firebaseErrorMessage } from '@/lib/errors';
 import { Button } from '@/components/ui/Button';
 import {
@@ -38,13 +43,14 @@ import {
   delimiterName,
   IMPORT_FIELDS,
   inferMapping,
+  normEmail,
   parseCsv,
   readFileText,
-  summarize,
   toPayload,
   type FieldMapping,
   type ParsedCsv,
   type PreviewRow,
+  type RowOutcome,
 } from '@/components/onboarding/csv';
 
 const PREVIEW_ROWS = 8;
@@ -73,6 +79,46 @@ const FILING_SHORT: Record<FilingStatus, string> = {
   entity: '—',
 };
 
+/**
+ * `buildPreview` only sees the file, so it can flag a row that repeats *inside*
+ * the CSV but not one that is already a client. The second thing every firm
+ * does is fix one row and upload the same list again, and at that moment the
+ * only question worth answering is "what will this actually do to my roster?".
+ * The server matches on email within the season, so the preview matches the
+ * same way — otherwise it promises eleven imports and performs none.
+ */
+type PreviewOutcome = RowOutcome | 'existing';
+type MarkedRow = Omit<PreviewRow, 'outcome'> & { outcome: PreviewOutcome };
+
+function markExisting(rows: PreviewRow[], existingEmails: Set<string>): MarkedRow[] {
+  return rows.map((r) =>
+    r.email && existingEmails.has(r.email) ? { ...r, outcome: 'existing' as const } : r,
+  );
+}
+
+interface ImportStats {
+  /** Rows that will become new clients — the number the button may claim. */
+  create: number;
+  existing: number;
+  duplicate: number;
+  error: number;
+}
+
+function tally(rows: MarkedRow[]): ImportStats {
+  const stats: ImportStats = { create: 0, existing: 0, duplicate: 0, error: 0 };
+  for (const r of rows) {
+    if (r.outcome === 'ready') stats.create++;
+    else if (r.outcome === 'existing') stats.existing++;
+    else if (r.outcome === 'duplicate') stats.duplicate++;
+    else stats.error++;
+  }
+  return stats;
+}
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 export function ImportClients({
   firmId,
   taxYear,
@@ -96,8 +142,25 @@ export function ImportClients({
     () => (parsed ? buildPreview(parsed.rows, mapping) : []),
     [parsed, mapping],
   );
-  const stats = useMemo(() => summarize(preview), [preview]);
+
+  // The roster this file is about to land in. Read live, because the truthful
+  // answer to "how many will this import?" depends on who is already here.
+  const roster = useCollection<Client>(
+    firmId ? query(collection(db, paths.clients(firmId)), where('taxYear', '==', taxYear)) : null,
+  );
+  const existingEmails = useMemo(() => {
+    const emails = new Set<string>();
+    for (const c of roster.data) {
+      const email = normEmail(c.primaryContact?.email ?? '');
+      if (email) emails.add(email);
+    }
+    return emails;
+  }, [roster.data]);
+
+  const rows = useMemo(() => markExisting(preview, existingEmails), [preview, existingEmails]);
+  const stats = useMemo(() => tally(rows), [rows]);
   const nameMapped = mapping.displayName !== undefined;
+  const checkingRoster = roster.loading;
 
   const handleFile = useCallback(async (file: File) => {
     setParseError(null);
@@ -130,15 +193,17 @@ export function ImportClients({
   }
 
   async function commit() {
-    const rows = toPayload(preview);
-    if (rows.length === 0) return;
+    // Only the rows we promised to create. The server dedupes again against the
+    // roster, so a client added by a teammate mid-upload is still safe.
+    const payload = toPayload(rows.filter((r) => r.outcome === 'ready') as PreviewRow[]);
+    if (payload.length === 0) return;
     setImporting(true);
     try {
-      const res = await importClients({ firmId, taxYear, rows });
+      const res = await importClients({ firmId, taxYear, rows: payload });
       setResult(res);
       onImported?.(res);
       if (res.created > 0) {
-        toast.success(`Imported ${res.created} ${res.created === 1 ? 'client' : 'clients'}.`);
+        toast.success(`Imported ${plural(res.created, 'client', 'clients')}.`);
       } else {
         toast.success('Everyone in that file was already in your workspace.');
       }
@@ -261,7 +326,7 @@ export function ImportClients({
             and the status must never scroll out of view, so we show cards here
             and the full table from `sm` up. */}
         <ul className="space-y-2 sm:hidden">
-          {preview.slice(0, PREVIEW_ROWS).map((row) => (
+          {rows.slice(0, PREVIEW_ROWS).map((row) => (
             <PreviewCardView key={row.index} row={row} />
           ))}
         </ul>
@@ -279,37 +344,35 @@ export function ImportClients({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {preview.slice(0, PREVIEW_ROWS).map((row) => (
+              {rows.slice(0, PREVIEW_ROWS).map((row) => (
                 <PreviewRowView key={row.index} row={row} />
               ))}
             </TableBody>
           </Table>
         </div>
-        {preview.length > PREVIEW_ROWS ? (
+        {rows.length > PREVIEW_ROWS ? (
           <p className="text-2xs text-ink-faint">
             Showing the first {PREVIEW_ROWS} of{' '}
-            <span className="tabular-nums">{preview.length}</span> rows.
+            <span className="tabular-nums">{rows.length}</span> rows.
           </p>
         ) : null}
 
-        <FlaggedRows rows={preview} />
+        <FlaggedRows rows={rows} />
       </section>
 
       <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-2xs leading-relaxed text-ink-faint">
           <CheckCircle2 className="mr-1 inline size-3.5 align-[-2px] text-status-success" />
-          Safe to run twice — we match on email and skip anyone already in your workspace.
+          {outcomeSentence(stats, checkingRoster)}
         </p>
         <Button
           variant="primary"
           onClick={commit}
           loading={importing}
-          disabled={!canImport || !nameMapped || stats.ready + stats.duplicate === 0}
+          disabled={!canImport || !nameMapped || checkingRoster || stats.create === 0}
           className="shrink-0"
         >
-          {stats.ready > 0
-            ? `Import ${stats.ready} ${stats.ready === 1 ? 'client' : 'clients'}`
-            : 'Import clients'}
+          {stats.create > 0 ? `Import ${plural(stats.create, 'client', 'clients')}` : 'Nothing to import'}
         </Button>
       </div>
       {!canImport ? (
@@ -401,7 +464,7 @@ function DropZone({
   );
 }
 
-function PreviewRowView({ row }: { row: PreviewRow }) {
+function PreviewRowView({ row }: { row: MarkedRow }) {
   const warnings = row.issues.filter((i) => i.level === 'warn');
   return (
     <TableRow className={cn(row.outcome === 'error' && 'opacity-55')}>
@@ -436,7 +499,7 @@ function PreviewRowView({ row }: { row: PreviewRow }) {
   );
 }
 
-function PreviewCardView({ row }: { row: PreviewRow }) {
+function PreviewCardView({ row }: { row: MarkedRow }) {
   const warnings = row.issues.filter((i) => i.level === 'warn');
   const detail = [
     ENTITY_TYPE_LABEL[row.entityType],
@@ -475,11 +538,14 @@ function PreviewCardView({ row }: { row: PreviewRow }) {
   );
 }
 
-function RowStatus({ outcome }: { outcome: PreviewRow['outcome'] }) {
+function RowStatus({ outcome }: { outcome: PreviewOutcome }) {
+  if (outcome === 'existing') {
+    return <StatusPill tone="neutral">Already here</StatusPill>;
+  }
   if (outcome === 'duplicate') {
     return (
       <StatusPill tone="warn" dot>
-        Duplicate
+        Repeated row
       </StatusPill>
     );
   }
@@ -493,20 +559,44 @@ function RowStatus({ outcome }: { outcome: PreviewRow['outcome'] }) {
   return (
     <span className="inline-flex items-center gap-1 text-2xs text-ink-faint">
       <CheckCircle2 className="size-3.5 text-status-success" />
-      Ready
+      New
     </span>
   );
 }
 
-function StatsRibbon({ stats }: { stats: ReturnType<typeof summarize> }) {
+/** The one sentence under the preview: what pressing the button will do. */
+function outcomeSentence(stats: ImportStats, checkingRoster: boolean): string {
+  if (checkingRoster) return 'Checking these against the clients you already have…';
+
+  const untouched = stats.existing + stats.duplicate;
+  if (stats.create === 0) {
+    if (stats.existing > 0) {
+      return stats.existing === 1
+        ? 'That client is already in your workspace. Nothing to import — your roster is up to date.'
+        : `All ${stats.existing} of these clients are already in your workspace. Nothing to import — your roster is up to date.`;
+    }
+    return 'No row in this file can become a client — check the column mapping above.';
+  }
+  if (untouched > 0) {
+    return `${plural(stats.create, 'client is', 'clients are')} new. The other ${plural(untouched, 'row', 'rows')} ${untouched === 1 ? 'is' : 'are'} already in your workspace and will be left alone.`;
+  }
+  return 'Safe to run twice — we match on email, so re-uploading this file changes nothing.';
+}
+
+function StatsRibbon({ stats }: { stats: ImportStats }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-ink-faint">
       <span className="tabular-nums text-ink-muted">
-        <span className="font-medium text-ink">{stats.ready}</span> ready
+        <span className="font-medium text-ink">{stats.create}</span> new
       </span>
+      {stats.existing > 0 ? (
+        <span className="tabular-nums">
+          <span className="font-medium text-ink-muted">{stats.existing}</span> already here
+        </span>
+      ) : null}
       {stats.duplicate > 0 ? (
         <span className="tabular-nums">
-          <span className="font-medium text-status-warn">{stats.duplicate}</span> duplicate
+          <span className="font-medium text-status-warn">{stats.duplicate}</span> repeated
         </span>
       ) : null}
       {stats.error > 0 ? (
@@ -518,7 +608,7 @@ function StatsRibbon({ stats }: { stats: ReturnType<typeof summarize> }) {
   );
 }
 
-function FlaggedRows({ rows }: { rows: PreviewRow[] }) {
+function FlaggedRows({ rows }: { rows: MarkedRow[] }) {
   const flagged = rows.filter((r) => r.issues.length > 0);
   if (flagged.length === 0) return null;
 
