@@ -1,7 +1,9 @@
 /**
  * Firebase client. The values below are public by design — Firebase web config
- * is an identifier, not a secret. Access control lives in the security rules
- * and App Check, both of which are enforced server-side.
+ * is an identifier, not a secret. Access control lives in the security rules,
+ * which are enforced server-side. App Check is wired up but only activates when
+ * a reCAPTCHA site key is built in; see functions/src/lib/options.ts for what
+ * it takes to arm it end to end.
  */
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
@@ -48,6 +50,13 @@ export const app: FirebaseApp = initializeApp(config);
 export const db: Firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   ignoreUndefinedProperties: true,
+  // Playwright's Linux WebKit build kills the WebChannel streaming GET after a
+  // few milliseconds, and the SDK's auto-detect does not recover from it: the
+  // client drops to offline mode for the rest of the session, so every realtime
+  // surface renders empty forever. Long polling is the documented remedy and
+  // costs nothing against a loopback emulator. Production keeps the default
+  // auto-detect, so real users still get streaming.
+  ...(useEmulators ? { experimentalForceLongPolling: true } : {}),
 });
 
 export const auth: Auth = getAuth(app);
@@ -62,11 +71,18 @@ if (useEmulators) {
   connectStorageEmulator(storage, '127.0.0.1', 9199);
   connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 } else {
+  // App Check is only armed when a reCAPTCHA Enterprise site key is built in.
+  // Without it this client sends no App Check token, so `ENFORCE_APP_CHECK` in
+  // functions/src/lib/options.ts must stay false — turning the backend on first
+  // would 401 every call. The warning is here so "App Check is on" is never
+  // something you assume from the code being present.
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   if (siteKey) {
     initializeAppCheck(app, {
       provider: new ReCaptchaEnterpriseProvider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
+  } else {
+    console.warn('App Check is not active: VITE_RECAPTCHA_SITE_KEY was not set at build time.');
   }
 }
