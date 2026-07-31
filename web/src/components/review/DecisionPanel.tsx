@@ -201,7 +201,11 @@ function ConfidenceMeter({ value }: { value: number }) {
   const tone = value >= 0.82 ? 'bg-status-success' : value >= 0.45 ? 'bg-status-warn' : 'bg-status-danger';
   return (
     <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken" role="img" aria-label={`${pct}% confident`}>
-      <div className={cn('h-full rounded-full transition-[width] duration-500 ease-out-quint', tone)} style={{ width: `${pct}%` }} />
+      {/* Deliberately static. This bar only ever changes because a different
+          document was selected, and a preparer selects hundreds a day. Sliding
+          between two unrelated documents' scores asserts a continuity that
+          isn't there, and puts a 500ms relayout on every j/k press. */}
+      <div className={cn('h-full rounded-full', tone)} style={{ width: `${pct}%` }} />
     </div>
   );
 }

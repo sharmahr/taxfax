@@ -6,7 +6,10 @@ import { ToneBadge } from './chaseUi';
 import type { PreviewResult } from './actions';
 
 /** The exact message, before it sends. A partner reads this and decides to trust
- *  the automation — so it shows the real subject, body, recipients and who's suppressed. */
+ *  the automation — so it shows the real subject, body, recipients and who's suppressed.
+ *
+ *  Mounts with `swap-in`: this arrives after a round trip, replacing a skeleton,
+ *  and the fade marks the arrival instead of letting the panel hard-cut. */
 export function MessagePreview({ preview, firmName }: { preview: PreviewResult; firmName: string }) {
   const hasEmail = preview.email !== null;
   const hasSms = preview.sms !== null;
@@ -14,7 +17,7 @@ export function MessagePreview({ preview, firmName }: { preview: PreviewResult; 
 
   if (!hasEmail && !hasSms) {
     return (
-      <div className="rounded-xl border border-line bg-surface-sunken/40 px-4 py-6 text-center">
+      <div className="swap-in rounded-xl border border-line bg-surface-sunken/40 px-4 py-6 text-center">
         <p className="text-sm font-medium text-ink">Nothing queued to send</p>
         <p className="mt-1 text-[13px] text-ink-muted">
           {preview.outstandingCount === 0
@@ -26,7 +29,7 @@ export function MessagePreview({ preview, firmName }: { preview: PreviewResult; 
   }
 
   return (
-    <div className="space-y-3">
+    <div className="swap-in space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-2xs text-ink-faint">
           Step {preview.stepIndex + 1} of the cadence · asks for {preview.outstandingCount}{' '}
