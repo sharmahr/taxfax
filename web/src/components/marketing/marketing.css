@@ -1,0 +1,230 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Marketing-only styling. Everything here serves the landing page and nothing
+   else, which is why it lives beside the components instead of in app.css.
+
+   The page has exactly one moving part: the derivation in `Derivation.tsx`.
+   The rest is typesetting.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Laid paper. Two crossed hairline gradients at a size no repeat is visible at,
+   so the background reads as a surface rather than as a pattern. */
+.mk-paper {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      oklch(0.17 0.005 285 / 0.014) 0 1px,
+      transparent 1px 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      oklch(0.17 0.005 285 / 0.01) 0 1px,
+      transparent 1px 4px
+    );
+}
+
+.dark .mk-paper {
+  background-image:
+    repeating-linear-gradient(0deg, oklch(1 0 0 / 0.012) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, oklch(1 0 0 / 0.009) 0 1px, transparent 1px 4px);
+}
+
+/* The system's eyebrow sets its own colour at the faintest ink, which is fine
+   inside a dense product surface and not fine on a page a stranger reads once.
+   This one leaves colour to the caller so every band can meet contrast. */
+.mk-eyebrow {
+  font-size: var(--text-2xs);
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Punctuation that starts a line hangs into the margin, the way a set page does. */
+.mk-hang {
+  hanging-punctuation: first last;
+}
+
+/* Dot leaders. A ruled schedule carries the eye from label to figure with a
+   row of points, not a full-width rule and not a box. */
+.mk-lead-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.mk-leader {
+  flex: 1 1 auto;
+  min-width: 1.25rem;
+  align-self: baseline;
+  border-bottom: 1px dotted var(--color-line-strong);
+  transform: translateY(-0.3em);
+  opacity: 0.7;
+}
+
+/* Derivation rows. One transition, driven by a data attribute, delayed by the
+   row index so the list assembles top to bottom. */
+/* Derived requests arrive one at a time. The rule stays put and only the
+   contents fade in, so the right column reads as a ruled form being filled. */
+.mk-row > * {
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.34s var(--ease-out-quint),
+    transform 0.34s var(--ease-out-quint);
+}
+
+.mk-row {
+  transition: background-color 0.12s ease-out;
+}
+
+.mk-row[data-in='true'] > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* The vermilion tick that walks down the prior-year return while it is read,
+   and stays on the lines the checklist was actually derived from. */
+.mk-cited {
+  box-shadow: inset 2px 0 0 0 var(--color-stamp);
+  background-color: var(--color-stamp-wash);
+}
+
+.mk-used {
+  box-shadow: inset 2px 0 0 0 color-mix(in oklch, var(--color-stamp) 45%, transparent);
+}
+
+.mk-cite-mark {
+  transition:
+    box-shadow 0.16s var(--ease-out-quint),
+    background-color 0.16s var(--ease-out-quint);
+}
+
+/* Message body crossfade when a chase step is selected. */
+.mk-swap {
+  animation: mk-swap-in 0.18s var(--ease-out-quint) both;
+}
+
+@keyframes mk-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Selectable lines on the schedule of fees ──────────────────────────────
+   The figure is the control. A dotted rule under it is the same affordance a
+   printed form uses for a line you are meant to complete; on hover it inks in
+   and the arrow steps right. Nothing is added to the row but a mark. */
+.mk-fee-figure {
+  text-decoration: underline dotted var(--color-ink-faint);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.34em;
+  transition: text-decoration-color 0.14s var(--ease-out-quint);
+}
+
+.mk-fee-mark {
+  color: var(--color-ink-muted);
+  transition:
+    color 0.14s var(--ease-out-quint),
+    transform 0.14s var(--ease-out-quint);
+}
+
+.mk-fee-link:hover .mk-fee-figure,
+.mk-fee-link:focus-visible .mk-fee-figure {
+  text-decoration: underline solid var(--color-stamp);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.34em;
+}
+
+.mk-fee-link:hover .mk-fee-mark,
+.mk-fee-link:focus-visible .mk-fee-mark {
+  color: var(--color-stamp);
+  transform: translateX(2px);
+}
+
+.mk-fee:has(.mk-fee-link:hover),
+.mk-fee:has(.mk-fee-link:focus-visible) {
+  background-color: var(--color-surface-sunken);
+}
+
+.mk-fee {
+  transition: background-color 0.12s ease-out;
+}
+
+/* ── The one action set into the body of the page ──────────────────────────
+   A ruled instruction line, the way a form points you at the next schedule.
+   The rule under the label inks over on hover instead of a box appearing. */
+.mk-act-label {
+  text-decoration: underline solid var(--color-line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+  transition: text-decoration-color 0.14s var(--ease-out-quint);
+}
+
+.mk-act:hover .mk-act-label,
+.mk-act:focus-visible .mk-act-label {
+  text-decoration-color: var(--color-stamp);
+}
+
+.mk-act .mk-fee-mark {
+  color: var(--color-ink-muted);
+}
+
+.mk-act:hover .mk-fee-mark,
+.mk-act:focus-visible .mk-fee-mark {
+  color: var(--color-stamp);
+  transform: translateX(2px);
+}
+
+/* ── The tear-off strip, phones only ───────────────────────────────────────
+   Eleven screens of page on a handset is too far to carry an intention. This
+   is the perforated stub at the foot of a payment voucher: a dashed rule, the
+   fee range, and the one action. It is fixed, so it costs no layout. */
+.mk-dock {
+  animation: mk-dock-in 0.22s var(--ease-out-quint) both;
+}
+
+@keyframes mk-dock-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Nothing on this page moves for anyone who has asked it not to. */
+@media (prefers-reduced-motion: reduce) {
+  .mk-row,
+  .mk-row > * {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .mk-swap {
+    animation: none;
+  }
+
+  .mk-dock {
+    animation: none;
+  }
+
+  .mk-fee-figure,
+  .mk-fee-mark,
+  .mk-act-label,
+  .mk-fee {
+    transition: none;
+  }
+
+  .mk-fee-link:hover .mk-fee-mark,
+  .mk-fee-link:focus-visible .mk-fee-mark,
+  .mk-act:hover .mk-fee-mark,
+  .mk-act:focus-visible .mk-fee-mark {
+    transform: none;
+  }
+}
