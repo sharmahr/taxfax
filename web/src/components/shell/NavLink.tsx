@@ -4,7 +4,11 @@ import { cn } from '@/lib/cn';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 interface NavLinkProps {
-  /** May point at a route another agent owns; matched at runtime, so it is cast. */
+  /**
+   * A route path, not a typed route id. The sidebar is assembled from data and
+   * can name a path that this file has no static knowledge of, so the value is
+   * cast at the `<Link>` boundary and matched against the pathname at runtime.
+   */
   to: string;
   icon: ComponentType<{ className?: string }>;
   label: string;
@@ -14,7 +18,8 @@ interface NavLinkProps {
 
 /**
  * Sidebar navigation row. Active state is computed from the pathname rather than
- * the typed matcher, so links to sections other agents own still light up.
+ * the typed matcher, so a link stays highlighted on nested routes and on paths
+ * the router's generated types don't cover.
  */
 export function NavLink({ to, icon: Icon, label, collapsed = false, onNavigate }: NavLinkProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });

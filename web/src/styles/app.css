@@ -29,12 +29,18 @@
   --color-surface-sunken: oklch(0.965 0.005 85);
   --color-surface-raised: oklch(1 0 0);
 
-  /* Three ink tiers, each ≥4.5:1 on paper: 17.9 / 7.0 / 4.6. `ink-faint` carries
-     ~200 real text nodes (counts, timestamps, units), so it is a text colour and
-     not decoration — do not lighten it back for subtlety. */
+  /* Three ink tiers, each ≥4.5:1 against every surface it can land on — not
+     just against paper. Worst case is `surface-sunken`, measured from rendered
+     pixels: 17.3 / 7.2 / 4.6 (on paper alone they read 18.0 / 7.5 / 4.8).
+     Quoting the paper-only number is how `ink-faint` shipped at 4.45:1 on
+     sunken rows. `ink-faint` carries ~200 real text nodes (counts, timestamps,
+     units), so it is a text colour and not decoration — do not lighten it back
+     for subtlety, and re-measure on sunken, not paper, if you touch it.
+     `ink-muted` moves with it: darkening faint alone closes the gap to muted,
+     so the two stay 1.56:1 apart from each other (they were 1.50:1). */
   --color-ink: oklch(0.17 0.005 285);
-  --color-ink-muted: oklch(0.45 0.008 285);
-  --color-ink-faint: oklch(0.548 0.007 285);
+  --color-ink-muted: oklch(0.435 0.008 285);
+  --color-ink-faint: oklch(0.541 0.007 285);
 
   --color-line: oklch(0.905 0.005 85);
   --color-line-strong: oklch(0.845 0.006 85);
@@ -45,20 +51,28 @@
   --color-stamp-wash: oklch(0.585 0.185 33 / 0.08);
 
   /* ── Status ────────────────────────────────────────────────────────────── */
-  --color-status-neutral: oklch(0.55 0.01 285);
-  --color-status-neutral-wash: oklch(0.55 0.01 285 / 0.09);
+  /* Every one of these is a text colour, not just a dot: `StatusPill` renders
+     `text-status-X` on `bg-status-X-wash`, and the roster puts the overdue-day
+     count in `text-status-warn` at 14px. So each is set to clear 4.5:1 both on
+     the surfaces and on its own wash over them — the wash is the tight case,
+     and it is where they used to fail (neutral 3.94, warn 3.28, success 4.05,
+     danger 4.32, info 4.47). Amber moved furthest because amber at its natural
+     lightness cannot carry text on paper at all. Dark-mode status colours
+     already cleared 4.5:1 on `surface-raised` and are unchanged. */
+  --color-status-neutral: oklch(0.514 0.01 285);
+  --color-status-neutral-wash: oklch(0.514 0.01 285 / 0.09);
 
-  --color-status-info: oklch(0.52 0.16 255);
-  --color-status-info-wash: oklch(0.52 0.16 255 / 0.09);
+  --color-status-info: oklch(0.513 0.16 255);
+  --color-status-info-wash: oklch(0.513 0.16 255 / 0.09);
 
-  --color-status-warn: oklch(0.605 0.14 68);
-  --color-status-warn-wash: oklch(0.605 0.14 68 / 0.12);
+  --color-status-warn: oklch(0.508 0.14 68);
+  --color-status-warn-wash: oklch(0.508 0.14 68 / 0.12);
 
-  --color-status-success: oklch(0.525 0.125 152);
-  --color-status-success-wash: oklch(0.525 0.125 152 / 0.1);
+  --color-status-success: oklch(0.496 0.125 152);
+  --color-status-success-wash: oklch(0.496 0.125 152 / 0.1);
 
-  --color-status-danger: oklch(0.545 0.196 27);
-  --color-status-danger-wash: oklch(0.545 0.196 27 / 0.09);
+  --color-status-danger: oklch(0.532 0.196 27);
+  --color-status-danger-wash: oklch(0.532 0.196 27 / 0.09);
 
   /* ── Focus ─────────────────────────────────────────────────────────────── */
   --color-focus: oklch(0.52 0.16 255);
@@ -100,10 +114,12 @@
   --color-surface-sunken: oklch(0.142 0.005 285);
   --color-surface-raised: oklch(0.225 0.005 285);
 
-  /* Mirrors the light ramp: 17.0 / 6.8 / 4.6 on dark paper. */
+  /* Mirrors the light ramp, and is held to the same worst case: `surface-raised`
+     is the lightest thing dark text lands on, so that is what these clear —
+     15.1 / 6.8 / 4.6. Against dark paper alone they read 16.9 / 7.6 / 5.1. */
   --color-ink: oklch(0.955 0.003 85);
-  --color-ink-muted: oklch(0.685 0.007 285);
-  --color-ink-faint: oklch(0.585 0.008 285);
+  --color-ink-muted: oklch(0.715 0.007 285);
+  --color-ink-faint: oklch(0.611 0.008 285);
 
   --color-line: oklch(0.285 0.006 285);
   --color-line-strong: oklch(0.365 0.007 285);

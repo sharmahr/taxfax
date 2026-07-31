@@ -1,9 +1,6 @@
 import {
-  differenceInCalendarDays,
   format,
   formatDistanceToNowStrict,
-  isToday,
-  isTomorrow,
 } from 'date-fns';
 import type { Timestampish } from '@taxfax/shared';
 
@@ -19,17 +16,6 @@ export function timeAgo(ts: Timestampish): string {
   const d = toDate(ts);
   if (Math.abs(Date.now() - d.getTime()) < 45_000) return 'just now';
   return formatDistanceToNowStrict(d, { addSuffix: true });
-}
-
-/** A deadline read at a glance: "Overdue", "Due today", "Due Fri", "Due Mar 14". */
-export function dueLabel(ts: Timestampish): string {
-  const d = toDate(ts);
-  const days = differenceInCalendarDays(d, new Date());
-  if (days < 0) return 'Overdue';
-  if (isToday(d)) return 'Due today';
-  if (isTomorrow(d)) return 'Due tomorrow';
-  if (days < 7) return `Due ${format(d, 'EEE')}`;
-  return `Due ${format(d, 'MMM d')}`;
 }
 
 /** Absolute date for tooltips and record detail: "Mar 14, 2026". */
