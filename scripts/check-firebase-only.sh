@@ -4,12 +4,30 @@
 # code never holds a provider SDK, so a provider swap is a console change and a
 # leaked provider key is not a thing we can do.
 #
-# This check is dependency-level. It is not a sandbox; it is the tripwire that
-# catches the realistic failure, which is someone reaching for a familiar npm
-# package under deadline.
+# It is not a sandbox; it is the tripwire that catches the realistic failure,
+# which is someone reaching for a familiar package or a familiar REST endpoint
+# under deadline. A denylist of dependency *names* only catches the first of
+# those, so this checks four things:
+#
+#   1. manifests, discovered rather than listed, so a new workspace is not
+#      invisible to the check the day it is created;
+#   2. imports in source, because `npm i` and a commit are separate acts and the
+#      import lands first;
+#   3. direct HTTP to a provider's API host, which needs no dependency at all —
+#      `fetch('https://api.sendgrid.com/v3/mail/send')` is the whole bypass;
+#   4. imports straight from a CDN, which route around the manifest and so
+#      around check 1.
+#
+# Scans every workspace's source, not just functions: a Postgres client or a
+# mail provider called from the browser is the same product violation, and the
+# web app is where a "quick" third-party integration is most tempting.
 set -euo pipefail
 
 fail=0
+
+# Source we own, in every workspace. Tracked files only — an untracked scratch
+# file is not shipped, and this keeps node_modules and build output out.
+code=(':!scripts/*' '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.svelte' '*.vue')
 
 # package -> why it is not allowed here
 banned=(
@@ -21,6 +39,11 @@ banned=(
   "mongoose:MongoDB ODM; use Firestore"
   "redis:Redis client; use Firestore"
   "ioredis:Redis client; use Firestore"
+  "@upstash/redis:hosted Redis; use Firestore"
+  "@neondatabase/serverless:hosted Postgres; use Firestore"
+  "@libsql/client:hosted SQLite; use Firestore"
+  "better-sqlite3:a local database file has no place in a stateless function"
+  "sqlite3:a local database file has no place in a stateless function"
   "@prisma/client:ORM implies a non-Firebase database"
   "prisma:ORM implies a non-Firebase database"
   "drizzle-orm:ORM implies a non-Firebase database"
@@ -70,33 +93,103 @@ banned=(
   "@google/generative-ai:classification must stay deterministic and on-Firebase"
 )
 
-for manifest in package.json web/package.json functions/package.json packages/shared/package.json; do
-  [ -f "$manifest" ] || continue
-  for entry in "${banned[@]}"; do
-    pkg="${entry%%:*}"
-    why="${entry#*:}"
-    if node -e "
-      const m = require('./$manifest');
-      const deps = { ...(m.dependencies||{}), ...(m.devDependencies||{}), ...(m.peerDependencies||{}) };
-      process.exit(deps['$pkg'] ? 0 : 1);
-    " 2>/dev/null; then
-      echo "::error file=$manifest::'$pkg' is not allowed — $why"
-      fail=1
-    fi
-  done
+# API host -> why calling it directly is the same violation as installing its
+# SDK. Hosts are matched inside a URL, so a mention in prose is not a hit.
+banned_hosts=(
+  'api\.sendgrid\.com:SendGrid; write to the mail/ queue instead'
+  'api\.mailgun\.net:Mailgun; write to the mail/ queue instead'
+  'api\.postmarkapp\.com:Postmark; write to the mail/ queue instead'
+  'api\.resend\.com:Resend; write to the mail/ queue instead'
+  'api\.mailjet\.com:Mailjet; write to the mail/ queue instead'
+  'api\.twilio\.com:Twilio; write to the messages/ queue instead'
+  'rest\.nexmo\.com:Vonage; write to the messages/ queue instead'
+  'api\.openai\.com:classification must stay deterministic and on-Firebase'
+  'api\.anthropic\.com:classification must stay deterministic and on-Firebase'
+  'generativelanguage\.googleapis\.com:classification must stay deterministic and on-Firebase'
+  'api\.stripe\.com:payments go through a Firebase Extension, not a direct call'
+  '[a-z0-9-]+\.supabase\.co:competing BaaS'
+  '[a-z0-9-]+\.upstash\.io:non-Firebase datastore'
+  '[a-z0-9-]+\.neon\.tech:non-Firebase database'
+  '[a-z0-9-]+\.planetscale\.com:non-Firebase database'
+  '[a-z0-9.-]*amazonaws\.com:another cloud; use Cloud Storage and Cloud Functions'
+  '[a-z0-9-]+\.blob\.core\.windows\.net:another cloud; use Cloud Storage'
+  'api\.vercel\.com:another host'
+  'api\.cloudflare\.com:another host'
+)
+
+# Prints one annotation per hit so the offending file and line are named.
+report() {
+  local why="$1" hits="$2" file rest line
+  while IFS= read -r hit; do
+    [ -z "$hit" ] && continue
+    file="${hit%%:*}"
+    rest="${hit#*:}"
+    line="${rest%%:*}"
+    echo "::error file=$file,line=$line::$why"
+    echo "    $hit"
+    fail=1
+  done <<< "$hits"
+}
+
+# 1. Manifests — discovered, not listed, so a workspace added tomorrow is
+#    covered today.
+manifests=$(git ls-files '*package.json' | grep -v '/node_modules/' || true)
+manifest_hits=$(BANNED="$(printf '%s\n' "${banned[@]}")" MANIFESTS="$manifests" node -e '
+  const fs = require("fs");
+  const banned = (process.env.BANNED || "").split("\n").filter(Boolean).map((e) => {
+    const i = e.indexOf(":");
+    return [e.slice(0, i), e.slice(i + 1)];
+  });
+  for (const m of (process.env.MANIFESTS || "").split("\n").filter(Boolean)) {
+    let pkg;
+    try { pkg = JSON.parse(fs.readFileSync(m, "utf8")); } catch { continue; }
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies };
+    for (const [name, why] of banned) if (deps[name]) console.log(m + "\t" + name + "\t" + why);
+  }
+')
+while IFS=$'\t' read -r manifest pkg why; do
+  [ -z "$manifest" ] && continue
+  echo "::error file=$manifest::'$pkg' is not allowed — $why"
+  fail=1
+done <<< "$manifest_hits"
+
+# 2. Imports — a dependency is in the code before it is in the manifest, and
+#    a vendored or transitively-available package never reaches the manifest
+#    at all.
+for entry in "${banned[@]}"; do
+  pkg="${entry%%:*}"
+  why="${entry#*:}"
+  esc=$(printf '%s' "$pkg" | sed 's/[.]/\\./g')
+  hits=$(git grep -InE \
+    "(from|import|require)[[:space:]]*\(?[[:space:]]*['\"]${esc}(/[^'\"]*)?['\"]" \
+    -- "${code[@]}" 2>/dev/null || true)
+  report "imports '$pkg' — $why" "$hits"
 done
 
-# Cloud Functions must not be handed provider credentials directly. If these
-# appear in function source, something is bypassing the Extensions.
-if [ -d functions/src ]; then
-  if grep -rInE '\b(SENDGRID_API_KEY|TWILIO_AUTH_TOKEN|SMTP_PASSWORD|AWS_SECRET_ACCESS_KEY)\b' functions/src >/dev/null 2>&1; then
-    echo "::error::Function source references a provider credential. Email and SMS must be sent by writing to the extension queue collections (mail/, messages/), never by calling a provider directly."
-    grep -rInE '\b(SENDGRID_API_KEY|TWILIO_AUTH_TOKEN|SMTP_PASSWORD|AWS_SECRET_ACCESS_KEY)\b' functions/src || true
-    fail=1
-  fi
-fi
+# 3. Direct HTTP to a provider. Needs no dependency, so checks 1 and 2 cannot
+#    see it; this is the bypass that looks like a one-line shortcut.
+for entry in "${banned_hosts[@]}"; do
+  host="${entry%%:*}"
+  why="${entry#*:}"
+  hits=$(git grep -InE "https?://${host}" -- "${code[@]}" 2>/dev/null || true)
+  report "calls a non-Firebase service host directly — $why" "$hits"
+done
+
+# 4. Remote module imports. They route around the manifest, which is where
+#    every other dependency check looks, and around npm's integrity checking.
+hits=$(git grep -InE "(from|import|require)[[:space:]]*\(?[[:space:]]*['\"]https?://" \
+  -- "${code[@]}" 2>/dev/null || true)
+report "imports a module over the network — dependencies must come from the manifest, where this check can see them" "$hits"
+
+# 5. Provider credentials in source. If these appear, something is bypassing
+#    the Extensions, which are the only thing that should ever hold them.
+#    No `\b` here: git grep's regex engine does not implement it, and a check
+#    whose pattern never matches is worse than no check at all.
+hits=$(git grep -InE '(SENDGRID_API_KEY|TWILIO_AUTH_TOKEN|SMTP_PASSWORD|AWS_SECRET_ACCESS_KEY)' \
+  -- "${code[@]}" 2>/dev/null || true)
+report "references a provider credential — email and SMS are sent by writing to the extension queue collections (mail/, messages/), never by calling a provider directly" "$hits"
 
 if [ "$fail" -eq 0 ]; then
-  echo "✓ Backend is Firebase-only: no competing database, queue, mail/SMS provider, cloud, or server framework."
+  echo "✓ Backend is Firebase-only: no competing database, queue, mail/SMS provider, cloud, or server framework — in any manifest, import, or outbound URL."
 fi
 exit "$fail"

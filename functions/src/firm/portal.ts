@@ -17,6 +17,7 @@ import { portalClaim, requireAuth, requireFirmRole, requirePortal } from '../lib
 import { denied, invalid, notFound } from '../lib/errors.js';
 import { logActivity } from '../lib/activity.js';
 import { callableOptions } from '../lib/options.js';
+import { portalInviteEmail } from '../lib/mail.js';
 import { cleanName, normEmail } from '../lib/validate.js';
 import { firstNameOf, resolveOrigin, tsMillis } from './util.js';
 
@@ -58,26 +59,11 @@ export const sendPortalInvite = onCall(callableOptions, async (req) => {
   const preparerName = cleanName(caller.token.name, 1, 120) ?? brand;
   const greeting = firstNameOf(client.primaryContact?.name || client.displayName);
 
-  const subject = `Your secure document portal for ${brand}`;
-  const text = `Hi ${greeting},
+  // Rendered in lib/mail so the HTML part is escaped once, centrally: the
+  // greeting comes off a client record a CSV import can write.
+  const message = portalInviteEmail({ greeting, preparerName, brand, link });
 
-${preparerName} at ${brand} has set up a secure portal for your tax documents. No password to remember — just open this link to get in:
-
-${link}
-
-Once you're in you'll see exactly what we need and can upload straight from your phone. Photos are fine; we straighten and rename everything for you.
-
-This link is just for you, so please don't forward it.
-
-— ${brand}`;
-  const html = `<p>Hi ${greeting},</p>
-<p><strong>${preparerName}</strong> at <strong>${brand}</strong> has set up a secure portal for your tax documents. No password to remember — just open this link to get in:</p>
-<p><a href="${link}">Open my document portal</a></p>
-<p>Once you're in you'll see exactly what we need and can upload straight from your phone. Photos are fine; we straighten and rename everything for you.</p>
-<p style="color:#6b7280;font-size:13px">This link is just for you, so please don't forward it.</p>
-<p>— ${brand}</p>`;
-
-  await db.collection(paths.mail()).add({ to: [email], message: { subject, text, html } });
+  await db.collection(paths.mail()).add({ to: [email], message });
 
   return { ok: true, email };
 });

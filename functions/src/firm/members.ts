@@ -18,6 +18,7 @@ import { already, conflict, denied, exhausted, invalid, notFound } from '../lib/
 import { syncClaimsFor } from '../lib/claims.js';
 import { logActivity } from '../lib/activity.js';
 import { callableOptions, triggerOptions } from '../lib/options.js';
+import { memberInviteEmail } from '../lib/mail.js';
 import { cleanName, normEmail } from '../lib/validate.js';
 import { avatarColor, resolveOrigin, tsMillis } from './util.js';
 
@@ -34,31 +35,6 @@ function callerName(token: { name?: unknown; email?: unknown }, fallback: string
     cleanName(token.name, 1, 120) ??
     (typeof token.email === 'string' ? token.email.split('@')[0]! : fallback)
   );
-}
-
-interface InviteCopy {
-  firmName: string;
-  inviterName: string;
-  roleLabel: string;
-  acceptUrl: string;
-  expiresInDays: number;
-}
-
-function inviteEmail(c: InviteCopy): { subject: string; text: string; html: string } {
-  const subject = `${c.inviterName} added you to ${c.firmName} on TaxFax`;
-  const text = `${c.inviterName} has invited you to join ${c.firmName} on TaxFax as ${c.roleLabel}.
-
-TaxFax is where the firm collects tax documents from clients — no more chasing email threads.
-
-Accept your invite:
-${c.acceptUrl}
-
-This link works for the next ${c.expiresInDays} days. If you weren't expecting it, you can ignore this email.`;
-  const html = `<p>${c.inviterName} has invited you to join <strong>${c.firmName}</strong> on TaxFax as <strong>${c.roleLabel}</strong>.</p>
-<p>TaxFax is where the firm collects tax documents from clients — no more chasing email threads.</p>
-<p><a href="${c.acceptUrl}">Accept your invite</a></p>
-<p style="color:#6b7280;font-size:13px">This link works for the next ${c.expiresInDays} days. If you weren't expecting it, you can ignore this email.</p>`;
-  return { subject, text, html };
 }
 
 // ── inviteMember ────────────────────────────────────────────────────────────
@@ -123,7 +99,7 @@ export const inviteMember = onCall(callableOptions, async (req) => {
   };
   await db.doc(paths.invite(token)).set(invite, { merge: true });
 
-  const copy = inviteEmail({
+  const copy = memberInviteEmail({
     firmName: firm.branding.displayName || firm.name,
     inviterName,
     roleLabel: ROLE_LABEL[role],

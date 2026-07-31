@@ -43,6 +43,7 @@ import type {
 } from '@taxfax/shared';
 
 import { FieldValue, Timestamp, db } from '../lib/admin.js';
+import { escapeHtml } from '../lib/mail.js';
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
 
@@ -403,16 +404,16 @@ export function renderStep(step: ChaseStep, copy: LocalizedCopy): RenderedStep {
 
 // ── HTML email body ──────────────────────────────────────────────────────────
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 /**
  * The plain-text body carries Unicode isolates (FSI…PDI) around interpolated
  * LTR runs. In HTML the equivalent is `<bdi>`, which every mail client that can
  * render Arabic already understands, so they are converted rather than escaped
  * into visible mojibake. The RLMs that pin bullet lines are dropped: `dir` on
  * the container does that job in HTML.
+ *
+ * The linkifier runs *after* `escapeHtml`, and depends on it encoding quotes:
+ * the body carries client and issuer names, so a name shaped like a URL is one
+ * unencoded `"` away from breaking out of the `href` it lands in.
  */
 export function textToHtml(text: string, locale: LocaleId): string {
   const rtl = directionOf(locale) === 'rtl';
