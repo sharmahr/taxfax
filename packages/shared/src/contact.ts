@@ -59,30 +59,124 @@ export function isEmail(value: unknown): value is string {
 }
 
 /**
- * Coerces a messy phone string to E.164, assuming US when no country code is
- * present (the overwhelming case for these firms). Returns null if it can't
- * produce something dialable rather than guessing.
+ * A desk extension at the end of the number. Rosters from Lacerte, Drake and
+ * every spreadsheet in between write these five ways, and all five used to be
+ * concatenated onto the number itself.
  */
-export function normPhone(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
+const EXTENSION_RE = /[\s,;.-]*(?:\bext(?:n|ension)?\b\.?|\bx\.?|#)\s*:?\s*(\d{1,6})\s*$/i;
+
+/** Punctuation a human uses to lay a number out. Anything else is not a number. */
+const FORMATTING_RE = /[\s().\-–—/\\+]/g;
+
+export interface PhoneParse {
+  /** The number we are willing to text. Null means we refused. */
+  e164: string | null;
+  /** A desk extension we lifted off the end, kept out of the number. */
+  extension?: string;
+  /** Why we refused, in the importer's voice. Only set when `e164` is null. */
+  problem?: string;
+  /** Something the firm should know about a number we did accept. */
+  note?: string;
+}
+
+function refuse(raw: string, because: string): PhoneParse {
+  return {
+    e164: null,
+    problem: `“${raw}” isn’t dialable — ${because} Imported without it, so no SMS.`,
+  };
+}
+
+/**
+ * Parses one phone cell into a number we can text, an extension, and an
+ * explanation. Never returns a number it had to invent digits for.
+ *
+ * The version this replaced stripped every non-digit and prepended `+` to
+ * whatever was left, so the very common roster cell `5125550111 ext 22` became
+ * `+512555011122` — twelve digits, comfortably inside `E164_RE`, and therefore
+ * returned as a *success*. `+512` is Mexico. Every downstream consumer,
+ * including the `isE164` guard on the send path, treats it as validated,
+ * because it is well-formed; what it is not is the client's number. A guard can
+ * stop garbage but it cannot stop a plausible lie, so the lie must not be
+ * manufactured here.
+ *
+ * Three shapes are unambiguous and nothing else is:
+ *  - anything the writer prefixed with `+` — they told us the country, so
+ *    foreign numbers keep working exactly as before;
+ *  - ten digits with no `+` — a bare US number, the overwhelming common case;
+ *  - eleven digits starting `1`.
+ *
+ * Shapes deliberately refused rather than guessed, all of which the old
+ * function returned a number for:
+ *  - a number with a desk extension welded on (`…0111 ext 22`) — the extension
+ *    is lifted off first so its digits can never join the number;
+ *  - a cell with words in it (`ask Marcus`, `call the office`, `n/a 555…`) —
+ *    the old strip deleted the letters and dialled whatever digits survived;
+ *  - fragments of an address or note (`apt 4b, 512.555.0111`, which used to
+ *    yield `+45125550111` — the `4` came out of "4b");
+ *  - a seven-digit local number, and any 9-, 12- or 13-digit string with no
+ *    `+`, which could be a typo or any of several countries. We do not know
+ *    which, and a wrong guess texts a stranger every week for a season while
+ *    the firm is told the client was chased.
+ */
+export function parsePhone(value: unknown): PhoneParse {
+  if (typeof value !== 'string') return { e164: null };
   const raw = value.trim();
-  if (raw.length === 0) return null;
+  if (raw.length === 0) return { e164: null };
 
-  const hadPlus = raw.startsWith('+');
-  const digits = raw.replace(/[^\d]/g, '');
-  if (digits.length === 0) return null;
+  // 1. Take the extension off first, so its digits can never join the number.
+  const extMatch = raw.match(EXTENSION_RE);
+  const extension = extMatch?.[1];
+  const number = extension ? raw.slice(0, raw.length - extMatch![0].length).trim() : raw;
+  if (number.length === 0) {
+    return refuse(raw, 'it is an extension with no number in front of it.');
+  }
 
-  let e164: string;
+  // 2. Whatever is left must be a number and its punctuation — nothing else.
+  //    "ask Marcus" and "n/a" are notes to a colleague, not phone numbers.
+  const digits = number.replace(FORMATTING_RE, '');
+  if (!/^\d+$/.test(digits)) {
+    return refuse(raw, 'we couldn’t read a phone number in it.');
+  }
+
+  const hadPlus = number.startsWith('+');
+
+  // 3. Only three shapes are unambiguous. Everything else would be a guess.
+  //    Note there is deliberately no trailing `else`: the one that used to be
+  //    here made the 11-digit branch above it redundant and turned every
+  //    unrecognised digit string into a number.
+  let e164: string | null = null;
   if (hadPlus) {
     e164 = `+${digits}`;
   } else if (digits.length === 10) {
     e164 = `+1${digits}`;
   } else if (digits.length === 11 && digits.startsWith('1')) {
     e164 = `+${digits}`;
-  } else {
-    e164 = `+${digits}`;
   }
-  return E164_RE.test(e164) ? e164 : null;
+
+  if (e164 === null || !E164_RE.test(e164)) {
+    return refuse(
+      raw,
+      hadPlus
+        ? `+${digits} isn’t a valid international number.`
+        : digits.length < 10
+          ? `it has ${digits.length} digit${digits.length === 1 ? '' : 's'} and a US number needs 10.`
+          : `${digits.length} digits with no country code could be any of several countries, and we won’t guess.`,
+    );
+  }
+
+  if (extension) {
+    return {
+      e164,
+      extension,
+      note: `Extension ${extension} kept out of the number — a text can’t dial one, so check they read SMS on the main line.`,
+    };
+  }
+  return { e164 };
+}
+
+/** The dialable number, or null. Refuses anything it would have to invent. */
+export function normPhone(value: unknown): string | null {
+  return parsePhone(value).e164;
 }
 
 /**

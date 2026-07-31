@@ -72,6 +72,46 @@ service cloud.firestore {
         .hasOnly(fields.toSet());
     }
 
+    // ── Contact-shape helpers ─────────────────────────────────────────────
+    // `primaryContact.email` and `.phone` are the only two fields in this
+    // database that a Firebase Extension turns into a real message — the `to`
+    // of an email and the recipient of a text. Everything that arrives through
+    // a callable is normalised by `packages/shared/src/contact.ts` first, but
+    // the rules below let a preparer's browser write a client document
+    // directly, and until now they constrained only `displayName`. So the one
+    // path that skipped every check was the one nothing validated.
+    //
+    // These mirror `E164_RE` and `EMAIL_RE` in that module. Two copies of a
+    // pattern is exactly the arrangement that let the last one drift, so the
+    // rules tests assert against the same shapes the shared self-check does.
+    // An empty string is allowed on both: clearing a field is not an attack,
+    // and the send paths already treat empty as absent.
+    function e164Ok(v) {
+      return v is string && (v == '' || v.matches('\\+[1-9][0-9]{7,14}'));
+    }
+
+    function emailOk(v) {
+      return v is string && v.size() <= 254 && (v == '' ||
+        v.matches("[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}"));
+    }
+
+    function contactOk(c) {
+      return c is map
+        && (!('phone' in c) || e164Ok(c.phone))
+        && (!('email' in c) || emailOk(c.email))
+        && (!('name' in c) || (c.name is string && c.name.size() <= 200));
+    }
+
+    // A write that does not mention a contact is none of our business; a write
+    // that does must carry a sendable one.
+    function contactsOk() {
+      return (!('primaryContact' in request.resource.data)
+          || contactOk(request.resource.data.primaryContact))
+        && (!('secondaryContact' in request.resource.data)
+          || request.resource.data.secondaryContact == null
+          || contactOk(request.resource.data.secondaryContact));
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // Firms
     // ═════════════════════════════════════════════════════════════════════
@@ -105,11 +145,13 @@ service cloud.firestore {
           && request.resource.data.firmId == firmId
           && request.resource.data.displayName is string
           && request.resource.data.displayName.size() > 0
-          && request.resource.data.displayName.size() <= 200;
+          && request.resource.data.displayName.size() <= 200
+          && contactsOk();
 
         allow update: if atLeast(firmId, 'preparer')
           // Progress counters and chase state are derived — Functions own them.
-          && !changed(['progress', 'chase', 'priorYear', 'firmId', 'createdAt']);
+          && !changed(['progress', 'chase', 'priorYear', 'firmId', 'createdAt'])
+          && contactsOk();
 
         allow delete: if atLeast(firmId, 'admin');
 

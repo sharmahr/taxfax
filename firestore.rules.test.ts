@@ -284,6 +284,104 @@ describe('roles', () => {
     // wrong tenant's collection and later read by firmId.
     await assertFails(setDoc(clientDoc(db, FIRM_A, 'bad3'), { firmId: FIRM_B, displayName: 'x' }));
   });
+
+  // `primaryContact.phone` and `.email` are the two fields in this database a
+  // Firebase Extension turns into a real message. The callables normalise them;
+  // this path did not look at them at all, so a preparer's browser could put an
+  // arbitrary string into the `to` of a text or the envelope of an email.
+  //
+  // The refusal cases below would all pass against a rule that refuses
+  // everything, which is why the acceptance cases are the ones that matter:
+  // if this constraint is ever tightened into uselessness, those break first.
+  it('a client contact must carry a sendable phone and email', async () => {
+    const db = staff('p', FIRM_A, 'preparer');
+    const withContact = (contact: Record<string, unknown>) => ({
+      firmId: FIRM_A,
+      displayName: 'Contact Probe',
+      primaryContact: { name: 'Probe', email: 'probe@example.com', ...contact },
+    });
+
+    // Free text straight into the phone field — the shape verified against the
+    // emulator before this rule existed.
+    await assertFails(
+      setDoc(clientDoc(db, FIRM_A, 'ph1'), withContact({ phone: 'call me maybe' })),
+    );
+    // Well-formed enough to look real, still not E.164.
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'ph2'), withContact({ phone: '512-555-0111' })));
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'ph3'), withContact({ phone: '5125550111' })));
+    // A desk extension welded on: the fabrication `normPhone` used to perform.
+    await assertFails(
+      setDoc(clientDoc(db, FIRM_A, 'ph4'), withContact({ phone: '+15125550111 ext 22' })),
+    );
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'ph5'), withContact({ phone: '+0123456789' })));
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'ph6'), withContact({ phone: 15125550111 })));
+
+    // Header-injection characters in an address the mail extension will render.
+    await assertFails(
+      setDoc(
+        clientDoc(db, FIRM_A, 'em1'),
+        withContact({ email: 'ava@example.com, evil@attacker.com' }),
+      ),
+    );
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'em2'), withContact({ email: 'a;b@x.com' })));
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'em3'), withContact({ email: 'a<b>@x.com' })));
+    await assertFails(setDoc(clientDoc(db, FIRM_A, 'em4'), withContact({ email: 'not an address' })));
+
+    // The secondary contact is written by the same form and was equally open.
+    await assertFails(
+      setDoc(clientDoc(db, FIRM_A, 'sec1'), {
+        firmId: FIRM_A,
+        displayName: 'Contact Probe',
+        secondaryContact: { name: 'Spouse', email: 'x@y.co', phone: 'ask them' },
+      }),
+    );
+  });
+
+  it('a sendable contact is still accepted — the positive control', async () => {
+    const db = staff('p', FIRM_A, 'preparer');
+    await assertSucceeds(
+      setDoc(clientDoc(db, FIRM_A, 'good1'), {
+        firmId: FIRM_A,
+        displayName: 'Good Contact',
+        primaryContact: {
+          name: 'Ava Okonkwo',
+          email: "ava.o'brien+2024@whitfieldrowe.com",
+          phone: '+15125550111',
+        },
+        secondaryContact: { name: 'Partner', email: 'p@b.co', phone: '+442079460018' },
+      }),
+    );
+    // Absent, empty and null are all legitimate: not every client has a mobile,
+    // and clearing a field is not an attack.
+    await assertSucceeds(
+      setDoc(clientDoc(db, FIRM_A, 'good2'), {
+        firmId: FIRM_A,
+        displayName: 'No Phone',
+        primaryContact: { name: 'Ava', email: 'ava@whitfieldrowe.com' },
+        secondaryContact: null,
+      }),
+    );
+    await assertSucceeds(
+      setDoc(clientDoc(db, FIRM_A, 'good3'), {
+        firmId: FIRM_A,
+        displayName: 'Cleared',
+        primaryContact: { name: 'Ava', email: '', phone: '' },
+      }),
+    );
+    // A write that never mentions a contact must not be dragged into this.
+    await assertSucceeds(updateDoc(clientDoc(db, FIRM_A, 'good1'), { stage: 'ready' }));
+    // Editing the contact to another good number keeps working on update too.
+    await assertSucceeds(
+      updateDoc(clientDoc(db, FIRM_A, 'good1'), {
+        primaryContact: { name: 'Ava', email: 'ava@whitfieldrowe.com', phone: '+15125550112' },
+      }),
+    );
+    await assertFails(
+      updateDoc(clientDoc(db, FIRM_A, 'good1'), {
+        primaryContact: { name: 'Ava', email: 'ava@whitfieldrowe.com', phone: '512.555.0113' },
+      }),
+    );
+  });
 });
 
 describe('derived fields are Functions-only', () => {

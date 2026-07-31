@@ -10,7 +10,7 @@ import { cadenceCompression, nextSendableSlot, renderEmail, renderSms, stepDueAt
 import { CHASE_PROFILES } from './chase.ts';
 import { DOC_TYPES, docType } from './taxonomy.ts';
 import { requestSatisfied, requestSatisfiedWith, type RequestStatus } from './models.ts';
-import { isE164, isEmail, normEmail, normPhone } from './contact.ts';
+import { isE164, isEmail, normEmail, normPhone, parsePhone } from './contact.ts';
 import {
   DESCRIPTOR_DOC_TYPE_IDS,
   DICTIONARIES,
@@ -853,6 +853,52 @@ Ava Okonkwo · Whitfield & Rowe`,
     assert.equal(isE164(norm!), true, `normPhone produced a non-E.164 string from ${raw}`);
   }
   assert.equal(normPhone('(415) 555-0142'), '+14155550142');
+
+  // A desk extension is not part of the number. The old function stripped every
+  // non-digit and prepended '+', so `ext 22` became two more digits on the end
+  // and `+512…` — Mexico — was returned as a *success*. Being well-formed is
+  // exactly what makes this worse than garbage: `isE164` cannot catch it.
+  for (const raw of [
+    '512-555-0111 ext 22',
+    '5125550111 ext 22',
+    '(512) 555-0111 x22',
+    '512.555.0111 #22',
+    '512 555 0111 extension 22',
+  ]) {
+    const parsed = parsePhone(raw);
+    assert.equal(parsed.e164, '+15125550111', `${raw} was not read as the number in front of it`);
+    assert.equal(parsed.extension, '22', `${raw} did not surface its extension`);
+    assert.ok(parsed.note, `${raw} dropped an extension without telling anyone`);
+  }
+
+  // A number the writer prefixed with '+' told us its country. Foreign numbers
+  // must keep working — the strictness belongs on the no-plus branch alone.
+  assert.equal(normPhone('+44 20 7946 0018'), '+442079460018', 'UK number must still dial');
+  assert.equal(normPhone('+52 55 1234 5678'), '+525512345678', 'Mexican number must still dial');
+  assert.equal(normPhone('+91 98765 43210'), '+919876543210', 'Indian number must still dial');
+  assert.equal(normPhone('+61 2 9374 4000'), '+61293744000', 'Australian number must still dial');
+  assert.equal(normPhone('+44 20 7946 0018 ext 5'), '+442079460018', 'extension off a UK number');
+
+  // Digit soup we refuse rather than invent. Each of these used to return a
+  // '+'-prefixed string that passed E164_RE.
+  for (const [raw, wouldHaveBeen] of [
+    ['ask Marcus at 512 555 0111', '+15125550111'],
+    ['apt 4b, 512.555.0111', '+45125550111'],
+    ['512555011', '+512555011'],
+    ['555-0111', null],
+    ['call the office', null],
+    ['x22', null],
+    // Two numbers in one cell: the old code refused this one, but silently —
+    // 20 digits overflowed E164_RE. It is refused *and explained* now.
+    ['5125550111 5125550112', null],
+  ] as const) {
+    const parsed = parsePhone(raw);
+    assert.equal(parsed.e164, null, `${raw} was guessed into ${parsed.e164} (was ${wouldHaveBeen})`);
+    assert.ok(parsed.problem, `${raw} was refused with no explanation for the firm`);
+  }
+  // An empty cell is not a mistake anyone needs telling about.
+  assert.deepEqual(parsePhone(''), { e164: null });
+  assert.deepEqual(parsePhone(undefined), { e164: null });
 
   // What a preparer can type straight into the field in the browser, which
   // firestore.rules does not constrain. These must never reach the SMS queue.

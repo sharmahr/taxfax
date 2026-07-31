@@ -16,6 +16,8 @@ export {
   isEmail,
   normEmail,
   normPhone,
+  parsePhone,
+  type PhoneParse,
 } from '../../../packages/shared/src/contact.ts';
 
 /** Trimmed, single-spaced, within bounds, or null. */
