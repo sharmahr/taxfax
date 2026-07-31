@@ -464,7 +464,18 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
   const reqs = await requests().get();
   const batch = db().batch();
   const now = new Date();
-  reqs.docs.forEach((d) => batch.update(d.ref, { status: 'accepted', acceptedAt: now }));
+  reqs.docs.forEach((d) => {
+    // A request is finished only when it holds as many documents as it asked
+    // for: `requestSatisfied` (packages/shared) holds both terminal statuses to
+    // `expectedCount`, because the server flips a request for two W-2s to
+    // `accepted` on the first one. Writing the status alone would manufacture
+    // precisely the half-finished state the portal now refuses to call done, so
+    // this step would be demanding the product lie in order to go green.
+    const want = Math.max(1, (d.get('expectedCount') as number | undefined) ?? 1);
+    const documentIds = ((d.get('documentIds') as string[] | undefined) ?? []).slice();
+    while (documentIds.length < want) documentIds.push(`e2e-filled-${d.id}-${documentIds.length}`);
+    batch.update(d.ref, { status: 'accepted', acceptedAt: now, documentIds });
+  });
   await batch.commit();
 
   // The list is a live Firestore subscription, so completing every request flips
