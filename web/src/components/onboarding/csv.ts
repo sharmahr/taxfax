@@ -1,8 +1,9 @@
 import Papa from 'papaparse';
-import { parsePhone } from './phone';
 import {
   ENTITY_TYPE_LABEL,
   FILING_STATUS_LABEL,
+  normEmail,
+  parsePhone,
   type EntityType,
   type FilingStatus,
 } from '@taxfax/shared';
@@ -14,9 +15,13 @@ import {
  * validation the `importClients` callable runs — so the preview tells the truth
  * about what the server will do rather than guessing.
  *
- * ponytail: the validators below (email/name/tags, and `phone.ts` next door)
- * mirror functions/src/lib/validate.ts. They live in Cloud Functions, not the
- * shared package, so they can't be imported; the preview would lie without them.
+ * The contact validators are no longer mirrored: `@taxfax/shared/contact` owns
+ * `normEmail` and `parsePhone`, and `functions/src/lib/validate.ts` re-exports
+ * them, so the preview and the callable now run the same code rather than two
+ * copies that drift. That drift was not hypothetical — the local email regex
+ * here was "anything without spaces", which showed firms nine shapes as
+ * importable (`a,b@x.com`, `user@[192.168.0.1]`, `a@ex_ample.com`, …) that the
+ * server then dropped without a word.
  */
 
 // ── The fields importClients accepts ─────────────────────────────────────────
@@ -95,17 +100,12 @@ export const IMPORT_FIELDS: FieldSpec[] = [
 
 export type FieldMapping = Partial<Record<ImportField, number>>;
 
+// ── Contact validators, owned by @taxfax/shared ──────────────────────────────
+// Re-exported rather than reimplemented so the preview, the settings forms and
+// the callable cannot disagree about what a usable email or phone number is.
+export { normEmail, normPhone, parsePhone, type PhoneParse } from '@taxfax/shared';
+
 // ── Server-mirrored validators ───────────────────────────────────────────────
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export function normEmail(value: string): string | null {
-  const email = value.trim().toLowerCase();
-  if (email.length === 0 || email.length > 254) return null;
-  return EMAIL_RE.test(email) ? email : null;
-}
-
-export { normPhone, parsePhone, type PhoneParse } from './phone';
-
 export function cleanName(value: string, min = 1, max = 200): string | null {
   const name = value.replace(/\s+/g, ' ').trim();
   if (name.length < min || name.length > max) return null;
