@@ -22,7 +22,7 @@
  */
 import { initializeApp, cert, type AppOptions } from 'firebase-admin/app';
 import { getFirestore, FieldValue, type Firestore } from 'firebase-admin/firestore';
-import { getAuth, type Auth } from 'firebase-admin/auth';
+import { getAuth, type Auth, type CreateRequest } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { readFileSync } from 'node:fs';
 import { parseReturnText } from '../functions/src/checklist/parsePriorYearReturn.ts';
@@ -218,10 +218,42 @@ async function wipe() {
   await bucket.deleteFiles({ prefix: `firms/${FIRM_ID}/` }).catch(() => {});
 }
 
+/** Nothing there to clear is the ordinary case; every other Auth error is real. */
+function ignoreMissing(e: unknown): undefined {
+  if ((e as { code?: string })?.code !== 'auth/user-not-found') throw e;
+  return undefined;
+}
+
+/**
+ * Creates a seed account, clearing whatever stands in its way first.
+ *
+ * Deleting is keyed on the uid but creating collides on the email, so clearing
+ * the uid alone leaves the seed at the mercy of anyone who signed in with a
+ * seeded address before running it: the Auth emulator mints that account under
+ * a uid of its own, `deleteUser` finds nothing to remove, and `createUser` dies
+ * with "The email address is already in use by another account" — an error that
+ * names neither the account holding it nor the sign-in that created it. On CI
+ * that surfaced as a portal heading not being found, four layers away.
+ *
+ * Whoever holds the email loses it. This is a seed: the uid is the identity
+ * every fixture, claim and E2E login is written against, and an address that
+ * belongs to someone else is not a state worth preserving.
+ */
+async function replaceUser(props: CreateRequest & { uid: string; email: string }): Promise<void> {
+  const clashes = await Promise.all([
+    auth.getUser(props.uid).catch(ignoreMissing),
+    auth.getUserByEmail(props.email).catch(ignoreMissing),
+  ]);
+  // A Set, because the ordinary re-seed finds the same account by both.
+  for (const uid of new Set(clashes.flatMap((u) => (u ? [u.uid] : [])))) {
+    await auth.deleteUser(uid);
+  }
+  await auth.createUser(props);
+}
+
 async function seedAuth() {
   for (const s of STAFF) {
-    await auth.deleteUser(s.uid).catch(() => {});
-    await auth.createUser({
+    await replaceUser({
       uid: s.uid,
       email: s.email,
       emailVerified: true,
@@ -233,8 +265,7 @@ async function seedAuth() {
 
   // One taxpayer, so the portal can be driven end to end.
   const portalUid = 'portal-eleanor';
-  await auth.deleteUser(portalUid).catch(() => {});
-  await auth.createUser({
+  await replaceUser({
     uid: portalUid,
     email: CLIENTS[0].email,
     emailVerified: true,
