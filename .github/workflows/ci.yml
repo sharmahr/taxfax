@@ -152,8 +152,10 @@ jobs:
           path: ~/.cache/firebase/emulators
           key: emulators-${{ runner.os }}-${{ hashFiles('firebase.json') }}
           restore-keys: emulators-${{ runner.os }}-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install browsers
+        # The mobile project is an iPhone descriptor, which is WebKit. Install
+        # both or half the matrix fails at launch instead of at an assertion.
+        run: npx playwright install --with-deps chromium webkit
       - name: Run Playwright
         run: npm run e2e
       - uses: actions/upload-artifact@v4
