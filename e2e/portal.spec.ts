@@ -248,8 +248,9 @@ test('taxpayer picks a language and it follows them', async ({ page }, testInfo)
 test('taxpayer: link → send → recognized → undo → done, in one sitting', async ({ page }, testInfo) => {
   // The mobile path deliberately waits out the ~45s image-OCR window before a
   // photo settles; the first Firestore snapshot can also lag under a freshly
-  // seeded, sibling-loaded emulator. Give the whole journey generous headroom.
-  test.setTimeout(180_000);
+  // seeded, sibling-loaded emulator. Give the whole journey generous headroom —
+  // it runs in ~55s locally and roughly twice that on a two-core CI runner.
+  test.setTimeout(240_000);
   const isMobile = testInfo.project.name === 'mobile';
   const tag = testInfo.project.name;
 
@@ -327,7 +328,7 @@ test('taxpayer: link → send → recognized → undo → done, in one sitting',
         d.uploadedVia === 'portal' &&
         d.contentType === 'image/jpeg' &&
         (d.state === 'needs_review' || d.state === 'classified'),
-      90_000,
+      150_000,
     );
     expect(uploaded.data.originalName).toMatch(/\.jpg$/i);
   } else {

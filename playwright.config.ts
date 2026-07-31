@@ -22,7 +22,10 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // Ceilings, not waits: a higher ceiling costs nothing when the operation
+  // succeeds. CI runners measured 2-3x slower than a dev laptop on this suite,
+  // and every budget in these specs was originally tuned locally.
+  expect: { timeout: process.env.CI ? 30_000 : 10_000 },
 
   use: {
     baseURL: 'http://localhost:5173',
