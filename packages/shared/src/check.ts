@@ -9,6 +9,20 @@ import { canonicalName, clientToken, documentPath, parseDocumentPath, slugify } 
 import { cadenceCompression, nextSendableSlot, renderEmail, renderSms, stepDueAt } from './chase.ts';
 import { CHASE_PROFILES } from './chase.ts';
 import { DOC_TYPES, docType } from './taxonomy.ts';
+import {
+  DESCRIPTOR_DOC_TYPE_IDS,
+  DICTIONARIES,
+  LEP_LANGUAGES,
+  LOCALES,
+  LOCALE_IDS,
+  TONES,
+  isLocaleId,
+  localeRecord,
+  resolveLepCode,
+  smsCost,
+  type LocaleId,
+  type StringKey,
+} from './i18n/index.ts';
 
 // ── Taxonomy ────────────────────────────────────────────────────────────────
 
@@ -25,6 +39,20 @@ import { DOC_TYPES, docType } from './taxonomy.ts';
   }
   // Every checklist rule and starter item must point at a real doc type.
   for (const s of STARTER_CHECKLIST) docType(s.docTypeId);
+
+  // Matchers widen, they never swap. `match.strong` is compiled and run against
+  // OCR'd document text, and a missing strong hit caps confidence below
+  // auto-accept — so a pattern spelled only one way silently dumps real
+  // documents into the review queue. The IRS says "acknowledgment" (Pub 1771)
+  // and plenty of charities write "acknowledgement"; both must land. This is the
+  // opposite of the rule for display strings below, which are en-US only.
+  const charity = docType('charitable').match.strong.map((p) => new RegExp(p, 'i'));
+  for (const spelling of ['acknowledgment of your gift', 'acknowledgement of your gift']) {
+    assert.ok(
+      charity.some((re) => re.test(`Thank you for your donation. This is our written ${spelling}.`)),
+      `the charitable matcher no longer accepts "${spelling}" — it was narrowed, not widened`,
+    );
+  }
 }
 
 // ── Checklist generation ────────────────────────────────────────────────────
@@ -92,8 +120,59 @@ import { DOC_TYPES, docType } from './taxonomy.ts';
   assert.ok(!ids.includes('1098-t'), 'no tuition statement without a prior-year signal');
 }
 
-// ── Canonical naming ────────────────────────────────────────────────────────
+// ── en-US spelling ──────────────────────────────────────────────────────────
 
+{
+  // This is a US tax product and English is the source locale every translation
+  // derives from, so one British spelling here propagates into all ten
+  // dictionaries. A named list of the usual offenders, not a spell-checker.
+  const EN_GB =
+    /^(?:(?:itemis|organis|recognis|authoris|summaris|categoris|normalis|denormalis|utilis|minimis|maximis|prioritis|customis|optimis|standardis|specialis|apologis|criticis|localis|canonicalis|neutralis)(?:e|ed|es|ing|ation|ations)|analys(?:e|ed|ing)|(?:behaviour|colour|favour|honour|labour|neighbour|humour|rumour|endeavour)\w*|acknowledgement|totalling|cheques?|licences?|enrolment|instalment|fulfil|programme|labelled|travelling|modelling|defence|offence|pretence|centres?|metres?|whilst|amongst|judgement|practise|ageing|skilful|wilful)$/i;
+
+  const clean = (where: string, text: string) => {
+    for (const word of text.match(/[A-Za-z]+/g) ?? []) {
+      if (EN_GB.test(word)) assert.fail(`${where}: en-GB spelling "${word}" in: ${text}`);
+    }
+  };
+  // The guard is worthless if it never fires.
+  for (const bad of ['cheque', 'itemised', 'totalling', 'acknowledgement', 'licence', 'honoured', 'localised']) {
+    assert.ok(EN_GB.test(bad), `the en-GB guard misses "${bad}"`);
+  }
+  for (const good of ['check', 'itemized', 'totaling', 'acknowledgment', 'license', 'organism', 'specialist', 'analysis', 'expenses', 'because']) {
+    assert.ok(!EN_GB.test(good), `the en-GB guard false-positives on "${good}"`);
+  }
+
+  // A prior year fat enough to fire nearly every rule, so the reasons are real.
+  const fat = emptyPriorYear(2024);
+  fat.formType = '1040';
+  fat.filingStatus = 'mfj';
+  fat.dependents = 3;
+  fat.state = 'NY';
+  fat.itemized = true;
+  fat.schedules = ['1', '2', '3', 'A', 'B', 'C', 'D', 'E', 'F', 'SE', '8829', '4562', '2441', '8863', '8889', '8962', '5695', '8812'];
+  fat.lines = {
+    '1z': 210_000, '2a': 400, '2b': 3_100, '3a': 900, '3b': 2_400, '4a': 9_000, '4b': 9_000,
+    '5a': 24_000, '5b': 20_000, '6a': 31_000, '7': 18_000, '8': 96_000, '26': 12_000,
+    'schA-5': 10_000, 'schA-8': 14_000, 'schA-14': 6_500, 'schA-17': 30_500,
+    'sch1-3': 96_000, 'sch1-5': 22_000, 'sch1-8': 1_200, 'digital-assets': 1,
+  };
+  fat.documentCounts = Object.fromEntries(DOC_TYPES.map((d) => [d.id, 2]));
+  fat.issuers = [{ docTypeId: 'w2', name: 'Acme Corp' }];
+  fat.confidence = 0.97;
+
+  const reasons = generateChecklist({ prior: fat, taxYear: 2025 });
+  assert.ok(reasons.length >= 25, `the spelling sweep only saw ${reasons.length} rules fire`);
+  for (const h of reasons) clean(`rule ${h.docTypeId}`, h.reason);
+  for (const s of STARTER_CHECKLIST) clean(`starter ${s.docTypeId}`, s.reason);
+  for (const d of DOC_TYPES) clean(`taxonomy ${d.id}`, [d.code, d.label, d.hint, d.issuedBy].join(' '));
+  for (const tone of TONES) {
+    const c = DICTIONARIES.en.chase[tone];
+    clean(`chase ${tone}`, [c.subject, ...c.body, c.sms].join(' '));
+  }
+  clean('dictionary en', [...Object.values(DICTIONARIES.en.s), ...Object.values(DICTIONARIES.en.docCode)].join(' '));
+}
+
+// ── Canonical naming ────────────────────────────────────────────────────────
 {
   assert.equal(
     canonicalName({
@@ -120,7 +199,7 @@ import { DOC_TYPES, docType } from './taxonomy.ts';
   assert.match(canonicalName({ ...base, sequence: 2 }), /_02\.pdf$/);
 
   // Hostile inputs must not escape the filename or the path.
-  assert.equal(slugify('../../etc/passwd'), 'EtcPasswd', 'path traversal must be neutralised');
+  assert.equal(slugify('../../etc/passwd'), 'EtcPasswd', 'path traversal must be neutralized');
   assert.ok(!clientToken('  🙂  ').includes('/'));
   const nasty = canonicalName({
     clientDisplayName: 'Ünïcode / Näme',
@@ -132,6 +211,22 @@ import { DOC_TYPES, docType } from './taxonomy.ts';
   });
   assert.ok(!/[/\\<>":*?|]/.test(nasty), `unsafe filename: ${nasty}`);
   assert.match(nasty, /\.jpg$/, 'extension comes from content type when the name has none');
+
+  // The bytes win over the filename. The portal transcodes HEIC to JPEG in the
+  // browser, so a name still ending .heic would otherwise canonicalize JPEG
+  // bytes to .heic — unopenable for the taxpayer, and invisible to OCR.
+  assert.match(
+    canonicalName({ ...base, originalName: 'w2-photo.heic', contentType: 'image/jpeg' }),
+    /\.jpg$/,
+    'a transcoded file must take its extension from contentType, not the stale name',
+  );
+  // ...but an unrecognized content type still defers to the name, because
+  // browsers send application/octet-stream for anything uncommon.
+  assert.match(
+    canonicalName({ ...base, originalName: 'ledger.qbo', contentType: 'application/octet-stream' }),
+    /\.qbo$/,
+    'unknown content types must fall back to the filename extension',
+  );
 
   // Path round-trip.
   const p = documentPath('firm_1', 2025, 'client_9', 'doc_3', nasty);
@@ -240,7 +335,7 @@ import { DOC_TYPES, docType } from './taxonomy.ts';
     outstanding: ['W-2', 'Form 1098', '1099-DIV', '1099-B'],
     outstandingCount: 4,
     totalCount: 11,
-    portalUrl: 'https://taxfax.app/p/abc123',
+    portalUrl: 'https://taxfax.xyz/p/abc123',
     daysWaiting: 9,
     daysToDeadline: 26,
     signature: 'Ava Okonkwo · Whitfield & Rowe',
@@ -262,6 +357,148 @@ import { DOC_TYPES, docType } from './taxonomy.ts';
   // A single outstanding item must not read like a list.
   const one = renderEmail('warm', { ...copy, outstanding: ['W-2'], outstandingCount: 1 });
   assert.ok(!/,\s*plus/.test(one.body), 'singular case should not say "plus N more"');
+
+  // ── English is the source and may not drift ──────────────────────────────
+  // Pinned to the character. Everything a taxpayer reads in English today must
+  // survive every future change to the locale core.
+  assert.equal(renderEmail('firm', copy).subject, 'Still need: W-2 and Form 1098, plus 2 more');
+  assert.equal(
+    renderEmail('neutral', copy).body,
+    `Hi Eleanor,
+
+Thanks — we've got 7 of 11. Still waiting on 4:
+
+  •  W-2
+  •  Form 1098
+  •  1099-DIV
+  •  1099-B
+
+https://taxfax.xyz/p/abc123
+
+Ava Okonkwo · Whitfield & Rowe`,
+  );
+  assert.equal(
+    renderSms('urgent', copy),
+    'Whitfield & Rowe: 4 docs missing, 26 days to the deadline. W-2 and Form 1098, plus 2 more. https://taxfax.xyz/p/abc123 — reply STOP to opt out.',
+  );
+  // An English message must carry no bidi control characters: they would cost a
+  // segment in SMS and show as mojibake in a plain-text mail client.
+  for (const tone of TONES) {
+    const rendered = renderEmail(tone, copy);
+    assert.ok(
+      !/[\u2066-\u2069\u200e\u200f]/.test(rendered.subject + rendered.body + renderSms(tone, copy)),
+      `${tone}: English must stay free of bidi controls`,
+    );
+  }
+}
+
+// ── i18n ────────────────────────────────────────────────────────────────────
+
+{
+  // Every locale record must be something `Intl` actually accepts, or a chase
+  // send throws at 6am inside a scheduled function.
+  for (const id of LOCALE_IDS) {
+    const rec = LOCALES[id];
+    assert.equal(rec.id, id, 'locale record must be filed under its own id');
+    assert.ok(rec.endonym.length > 0 && rec.englishName.length > 0, `${id} needs both names`);
+    for (const tag of [rec.bcp47, rec.listLocale ?? rec.bcp47]) {
+      assert.equal(Intl.getCanonicalLocales(tag).length, 1, `${id}: ${tag} is not a valid tag`);
+      new Intl.PluralRules(tag);
+      new Intl.NumberFormat(tag);
+      new Intl.DateTimeFormat(tag, { month: 'long', day: 'numeric' });
+      new Intl.ListFormat(tag, { type: 'conjunction' });
+    }
+  }
+  assert.equal(localeRecord('ar').dir, 'rtl', 'Arabic is the reason bidi exists here');
+  assert.equal(localeRecord('nope').id, 'en', 'an unknown locale must fall back, never throw');
+
+  // Schedule LEP: all 21 codes, unique, and every mapped locale is real.
+  assert.equal(LEP_LANGUAGES.length, 21, 'twenty languages plus the cancel code');
+  assert.equal(new Set(LEP_LANGUAGES.map((l) => l.code)).size, 21, 'LEP codes must be unique');
+  for (const l of LEP_LANGUAGES) {
+    assert.match(l.code, /^\d{3}$/, `${l.language} needs a three-digit code`);
+    if (l.locale) assert.ok(isLocaleId(l.locale), `${l.code} maps to a locale we don't have`);
+    const out = resolveLepCode(l.code);
+    assert.equal(out.kind, l.locale ? 'supported' : 'unsupported', `${l.code} outcome`);
+    assert.ok(isLocaleId(out.locale), `${l.code} must always resolve to a real locale`);
+  }
+  assert.equal(resolveLepCode('999').kind, 'unknown', 'a code not on the form is not an election');
+  assert.equal(resolveLepCode(undefined).kind, 'unknown');
+}
+
+{
+  // Dictionary completeness. A half-translated locale must fail the build, not
+  // silently fall back to English in front of a taxpayer.
+  const keys = Object.keys(DICTIONARIES.en.s) as StringKey[];
+  const fixture = {
+    clientFirstName: 'Eleanor',
+    firmName: 'Whitfield & Rowe',
+    preparerName: 'Ava Okonkwo',
+    outstanding: ['W-2', 'Form 1098', '1099-DIV', '1099-B'],
+    outstandingCount: 4,
+    totalCount: 11,
+    portalUrl: 'https://taxfax.xyz/p/abc123',
+    daysWaiting: 9,
+    daysToDeadline: 26,
+    signature: 'Ava Okonkwo · Whitfield & Rowe',
+  };
+
+  for (const id of LOCALE_IDS) {
+    const d = DICTIONARIES[id];
+    assert.equal(d.locale, id, `${id} dictionary must declare its own locale`);
+    assert.equal(id === 'en', d.review === 'source', `only English is the source (${id})`);
+
+    for (const key of keys) {
+      assert.ok(d.s[key] && d.s[key].length > 0, `${id} is missing string "${key}"`);
+    }
+    for (const docId of DESCRIPTOR_DOC_TYPE_IDS) {
+      assert.ok(d.docCode[docId], `${id} is missing doc label "${docId}"`);
+      docType(docId); // and it must still be a real doc type
+    }
+
+    // Plurals must cover every category CLDR actually selects for this language:
+    // Russian needs four forms, Arabic six. `other` alone is a machine paste.
+    const rules = new Intl.PluralRules(LOCALES[id].bcp47);
+    const used = new Set<Intl.LDMLPluralRule>();
+    for (let n = 0; n <= 120; n++) used.add(rules.select(n));
+    for (const [name, forms] of Object.entries(d.plural)) {
+      const filled: Partial<Record<Intl.LDMLPluralRule, string>> = forms;
+      for (const cat of used) {
+        assert.ok(filled[cat], `${id}.plural.${name} is missing the "${cat}" form`);
+      }
+    }
+
+    for (const tone of TONES) {
+      const t = d.chase[tone];
+      assert.ok(t && t.subject && t.body.length > 0 && t.sms, `${id}/${tone} is incomplete`);
+
+      const email = renderEmail(tone, { ...fixture, locale: id });
+      const sms = renderSms(tone, { ...fixture, locale: id });
+      // An unresolved slot must fail here, never in a taxpayer's inbox.
+      assert.ok(
+        !/\{\w+(#\w+)?\}/.test(email.subject + email.body + sms),
+        `${id}/${tone} left a template slot unrendered`,
+      );
+      assert.ok(!/\bundefined\b|\bNaN\b/.test(email.subject + email.body + sms), `${id}/${tone} rendered a hole`);
+      assert.ok(email.body.includes(fixture.portalUrl), `${id}/${tone} must link the portal`);
+      assert.ok(sms.includes(fixture.portalUrl), `${id}/${tone} sms must link the portal`);
+      assert.ok(sms.includes('STOP'), `${id}/${tone} sms must keep the opt-out keyword`);
+
+      // Non-Latin text is UCS-2, so 70 characters a segment. Two segments is the
+      // budget; three is a third more money for every chase text a firm sends.
+      const cost = smsCost(sms);
+      const ceiling = id === 'en' ? 3 : 2;
+      assert.ok(
+        cost.segments <= ceiling,
+        `${id}/${tone} sms is ${cost.segments} ${cost.encoding} segments (${cost.units} units): ${sms}`,
+      );
+    }
+  }
+
+  // Arabic must isolate the Latin runs it splices in, and nothing else should.
+  const ar = renderEmail('urgent', { ...fixture, locale: 'ar' as LocaleId });
+  assert.ok(ar.body.includes('\u2068https://taxfax.xyz/p/abc123\u2069'), 'the URL must be isolated');
+  assert.ok(ar.body.includes('\u200f  •  '), 'RTL bullet lines must be pinned with an RLM');
 }
 
 console.log('shared: all checks passed');

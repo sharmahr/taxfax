@@ -50,12 +50,26 @@ const EXT_BY_TYPE: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
 };
 
+/**
+ * The extension the *bytes* deserve, not the one the filename claims.
+ *
+ * `contentType` wins whenever we recognise it, because the two genuinely
+ * disagree after a transcode: the portal re-encodes HEIC to JPEG in the
+ * browser, and trusting `w2-photo.heic` there would canonicalise JPEG bytes to
+ * `.heic` — a file the taxpayer's own OS refuses to open, and one that can slip
+ * past OCR forever because nothing downstream looks inside it.
+ *
+ * The filename is only a fallback, for the uncommon types browsers hand us as
+ * `application/octet-stream`.
+ */
 export function extensionFor(originalName: string, contentType: string): string {
+  const known = EXT_BY_TYPE[contentType];
+  if (known) return known;
   const fromName = originalName.includes('.')
     ? originalName.split('.').pop()!.toLowerCase().replace(/[^a-z0-9]/g, '')
     : '';
   if (fromName && fromName.length <= 5) return fromName;
-  return EXT_BY_TYPE[contentType] ?? 'bin';
+  return 'bin';
 }
 
 export interface CanonicalNameInput {

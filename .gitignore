@@ -20,11 +20,6 @@ build/
 # Firebase
 .firebase/
 .emulator-data/
-firebase-debug.log*
-firestore-debug.log*
-ui-debug.log*
-database-debug.log*
-pubsub-debug.log*
 firebase-export-*/
 extensions/*.secret.local
 
@@ -33,6 +28,10 @@ playwright-report/
 test-results/
 blob-report/
 .playwright/
+e2e/screenshots/
+
+# Router codegen cache
+web/.tanstack/
 
 # OS / editor
 .DS_Store
@@ -40,8 +39,9 @@ blob-report/
 .vscode/
 *.swp
 
-# Agent scratch — deleted before ship, never committed
+# Agent scratch and design review artifacts — deleted before ship, never committed
 scratch/
-emulators.log
-firebase-debug*.log
-ui-debug.log
+_*_scratch/
+.routeswap/
+design-review/
+*.log

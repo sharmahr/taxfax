@@ -70,7 +70,7 @@ export interface DocTypeDef {
 
 /**
  * The taxonomy. `match` patterns are case-insensitive and run against text that
- * has been whitespace-normalised, so patterns may assume single spaces.
+ * has been whitespace-normalized, so patterns may assume single spaces.
  */
 export const DOC_TYPES: DocTypeDef[] = [
   // ── Income ────────────────────────────────────────────────────────────────
@@ -576,12 +576,12 @@ export const DOC_TYPES: DocTypeDef[] = [
     code: 'Charity',
     label: 'Charitable Contribution Receipts',
     category: 'deduction',
-    hint: 'Donation receipts — anything over $250 needs a written acknowledgement.',
+    hint: 'Donation receipts — anything over $250 needs a written acknowledgment.',
     issuedBy: 'Each charity you gave to',
     multiple: true,
     slug: 'Charitable',
     match: {
-      strong: ['charitable contribution', 'donation receipt', 'acknowledgement of your gift'],
+      strong: ['charitable contribution', 'donation receipt', 'acknowledge?ment of your gift'],
       weak: ['tax-deductible', '501\\(c\\)\\(3\\)', 'no goods or services were provided'],
     },
   },
@@ -690,9 +690,9 @@ export const DOC_TYPES: DocTypeDef[] = [
   {
     id: 'photo-id',
     code: 'ID',
-    label: "Driver's Licence or State ID",
+    label: "Driver's License or State ID",
     category: 'identity',
-    hint: "A photo of the front of your licence — several states require it to e-file.",
+    hint: "A photo of the front of your license — several states require it to e-file.",
     issuedBy: 'Your state DMV',
     multiple: true,
     slug: 'PhotoID',
